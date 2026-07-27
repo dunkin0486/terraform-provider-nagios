@@ -1,15 +1,19 @@
 package main
 
 import (
-	"github.com/devopsdunkin/terraform-provider-nagios/nagios"
-	"github.com/hashicorp/terraform/plugin"
-	"github.com/hashicorp/terraform/terraform"
+	"context"
+	"log"
+
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+
+	"github.com/dunkin0486/terraform-provider-nagios/internal/provider"
 )
 
 func main() {
-	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: func() terraform.ResourceProvider {
-			return nagios.NagiosProvider()
-		},
+	err := providerserver.Serve(context.Background(), provider.New, providerserver.ServeOpts{
+		Address: "registry.terraform.io/dunkin0486/nagios",
 	})
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }

@@ -1,10 +1,9 @@
-FROM golang:alpine
+FROM golang:1.25-alpine
 
-WORKDIR $GOPATH
+WORKDIR /src
 RUN apk add --update git bash
-RUN export GO111MODULE=auto
 
-COPY . $GOPATH
+COPY . .
 RUN go build -o /tf-provider/terraform-provider-nagios
 
 ENTRYPOINT ["/bin/bash"]

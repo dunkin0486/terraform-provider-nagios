@@ -1,0 +1,23 @@
+services:
+  nagiosxi:
+    build: .
+    image: terraform-provider-nagios-test-nagiosxi:latest
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    ports:
+      - "8080:80"
+      - "8443:443"
+    healthcheck:
+      # fullinstall takes 10-15+ minutes on first boot; start_period gives it
+      # room before failed checks count against the container.
+      test: ["CMD", "curl", "-fsk", "http://localhost/nagiosxi/login.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 60
+      start_period: 20m
