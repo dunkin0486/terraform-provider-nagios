@@ -2,7 +2,7 @@
 
 Terraform provider for Nagios XI
 
-[![CircleCI](https://circleci.com/gh/devopsdunkin/terraform-provider-nagios/tree/master.svg?style=svg)](https://circleci.com/gh/devopsdunkin/terraform-provider-nagios/tree/master)
+[![test](https://github.com/dunkin0486/terraform-provider-nagios/actions/workflows/test.yml/badge.svg)](https://github.com/dunkin0486/terraform-provider-nagios/actions/workflows/test.yml)
 
 ## Supported Nagios XI versions
 
