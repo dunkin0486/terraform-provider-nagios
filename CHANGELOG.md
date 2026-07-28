@@ -1,5 +1,28 @@
 # CHANGELOG
 
+## 2.0.0 (July 28, 2026)
+
+BREAKING CHANGES:
+
+* The provider is rewritten on `terraform-plugin-framework`, replacing the deprecated pre-2019 `github.com/hashicorp/terraform` SDK v1 monolith. Provider configuration and resource/data source schemas are unchanged in shape, but the provider address is now `registry.terraform.io/dunkin0486/nagios` ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Host's `2d_coords`/`3d_coords` attributes are renamed to `coords_2d`/`coords_3d` - Terraform attribute names can't start with a digit; this was previously silently tolerated by the old SDK but is rejected by the real `terraform` binary ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+
+BUG FIXES:
+
+* Fixes every `GetX` client function returning a non-nil, all-empty-fields struct on zero results instead of `nil` - this silently broke Terraform's not-found/state-clearing handling and caused an intermittent "provider produced inconsistent result after apply" failure ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Fixes `authserver`'s Update handler being a complete no-op - `enabled` changes were never pushed to Nagios ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Fixes `authserver`'s DELETE request sending the wrong field name in its body ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Fixes `free_variables` on `host`/`service` never being read back correctly - Nagios returns these as dynamic top-level keys on the object, not nested under a `free_variables` key ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Fixes optional boolean attributes silently sending Nagios an explicit `false` for unset values, indistinguishable from an intentional `false` ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Fixes the live Nagios API token leaking in plaintext into Terraform diagnostics on any transient network failure ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Fixes malformed request URLs for any object name/description containing a space, for every mutating call except two that had a partial workaround ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+
+IMPROVEMENTS:
+
+* Adds the rename-after-manual-delete recreate fallback to `hostgroup`/`servicegroup`, which every other object type already had ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Docs are now generated via `tfplugindocs` from schema + `examples/`, replacing hand-written `docs/*.md` ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+* Releases are now built and published via GoReleaser instead of a manual per-platform build loop ([#87](https://github.com/dunkin0486/terraform-provider-nagios/pull/87))
+
 ## 1.4.0 (December XX, 2019)
 
 FEATURES:
