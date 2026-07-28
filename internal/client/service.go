@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 // Service mirrors the fields Nagios XI's service object API accepts/returns.
@@ -134,7 +133,9 @@ func (c *Client) DeleteService(ctx context.Context, hostNamesCSV, description st
 	if err != nil {
 		return err
 	}
-	nagiosURL += "&service_description=" + strings.ReplaceAll(description, " ", "%20")
+	// Space-escaping for this appended fragment is handled centrally in
+	// client.do() now, along with every other verb's URL.
+	nagiosURL += "&service_description=" + description
 
 	data := &url.Values{}
 	data.Set("host_name", hostNamesCSV)
