@@ -14,7 +14,7 @@ import (
 // TestCase.ProtoV6ProviderFactories - the framework-native equivalent of the
 // old SDKv1 testAccProviders map.
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-	"nagios": providerserver.NewProtocol6WithError(New()),
+	"nagios": providerserver.NewProtocol6WithError(New("test")()),
 }
 
 var requiredEnvVariables = []string{

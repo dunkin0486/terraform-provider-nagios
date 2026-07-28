@@ -1,5 +1,6 @@
 terraform-provider-nagios*
 bin/
+/dist/
 *.tf
 *.tfvars
 *.log

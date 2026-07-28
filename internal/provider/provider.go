@@ -16,11 +16,17 @@ import (
 
 var _ provider.Provider = &nagiosProvider{}
 
-type nagiosProvider struct{}
+type nagiosProvider struct {
+	version string
+}
 
-// New returns a fresh instance of the Nagios provider.
-func New() provider.Provider {
-	return &nagiosProvider{}
+// New returns a factory for a fresh instance of the Nagios provider.
+// version is injected by GoReleaser's ldflags at build time (see main.go)
+// and reported back to Terraform via Metadata.
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &nagiosProvider{version: version}
+	}
 }
 
 type nagiosProviderModel struct {
@@ -30,6 +36,7 @@ type nagiosProviderModel struct {
 
 func (p *nagiosProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "nagios"
+	resp.Version = p.version
 }
 
 func (p *nagiosProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
