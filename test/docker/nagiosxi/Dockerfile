@@ -16,7 +16,7 @@
 # Ubuntu 22.04/24.04, and Debian 11/12 - CentOS 6/7 (used by older, now-stale
 # community Nagios XI Dockerfiles) are explicitly rejected by the installer's
 # check_os_support. Rocky Linux 9 identifies itself as el9-compatible.
-FROM rockylinux/rockylinux:9-ubi-init
+FROM rockylinux/rockylinux:10-ubi-init
 
 RUN dnf -y --allowerasing install wget tar which curl sudo dnf-plugins-core \
     # initscripts-service provides `service`, used by the installer's
