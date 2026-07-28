@@ -63,6 +63,19 @@ tfplugindocs generate
 
 Docs are generated from schema `Description` fields and the example `.tf` files in `examples/` — don't hand-edit `docs/*.md`.
 
+## Commit messages and releases
+
+Releases are automated: [release-please](https://github.com/googleapis/release-please) watches commits on `main` and opens/updates a version-bump PR based on [Conventional Commits](https://www.conventionalcommits.org/) prefixes. Merging *that* PR is what creates the next version tag, which then triggers the actual build/sign/release pipeline (`.github/workflows/release.yml`).
+
+This means the PR title/squash-commit message you merge to `main` needs a Conventional Commits prefix for it to be picked up correctly:
+
+- `fix: ...` → patch release
+- `feat: ...` → minor release
+- `feat!: ...` or a `BREAKING CHANGE:` footer → major release
+- `chore:`, `docs:`, `ci:`, `refactor:`, `test:` etc. → included in the changelog but don't trigger a release on their own
+
+A commit/PR title without one of these prefixes won't be picked up by release-please as release-worthy.
+
 ## Pull requests
 
 - **Run the acceptance test suite before opening a PR** (see Testing above) if your change touches `internal/client` or `internal/provider` at all. CI only runs unit tests and lint - it does not boot the Docker Nagios instance or set `TF_ACC`, so acceptance failures will not be caught automatically. This is not optional for resource/client changes: several real bugs in this provider (the `getX`-never-returns-nil bug, the `free_variables` round-trip bug, the `2d_coords`/`3d_coords` invalid-attribute-name bug) were only ever caught by actually running the suite against a live instance, not by build/vet/unit tests.

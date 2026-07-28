@@ -54,6 +54,13 @@ signs:
       - '${artifact}'
 
 release:
+  # release-please creates the GitHub release (with its own changelog-derived
+  # notes) before this runs; keep-existing leaves that release/its notes
+  # alone and just uploads the build artifacts to it instead of erroring
+  # because a release for the tag already exists. Also handles the manual
+  # workflow_dispatch re-run path fine, since it creates one from scratch if
+  # none exists yet.
+  mode: keep-existing
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
