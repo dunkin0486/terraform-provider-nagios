@@ -17,8 +17,15 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
+      - name: import GPG signing key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
       - uses: goreleaser/goreleaser-action@v7
         with:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}

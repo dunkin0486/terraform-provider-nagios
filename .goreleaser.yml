@@ -42,11 +42,16 @@ checksum:
   name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
   algorithm: sha256
 
-# No `signs:` block yet - GPG-signing the checksum file is required before
-# this provider can be published to the public Terraform Registry, but not
-# for GitHub-only releases + local dev overrides / private registries. Add
-# it (see HashiCorp's provider scaffolding template) once a signing key
-# exists and GPG_FINGERPRINT/GPG_PRIVATE_KEY/PASSPHRASE secrets are set.
+signs:
+  - artifacts: checksum
+    args:
+      - '--batch'
+      - '-u'
+      - '{{ .Env.GPG_FINGERPRINT }}'
+      - '--output'
+      - '${signature}'
+      - '--detach-sign'
+      - '${artifact}'
 
 release:
   extra_files:
