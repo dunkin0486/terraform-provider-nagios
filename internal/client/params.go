@@ -38,7 +38,7 @@ func setURLParams(nagiosObject interface{}) *url.Values {
 	values := reflect.ValueOf(nagiosObject)
 	urlParams := &url.Values{}
 
-	if values.Kind() == reflect.Ptr {
+	if values.Kind() == reflect.Pointer {
 		values = values.Elem()
 	}
 

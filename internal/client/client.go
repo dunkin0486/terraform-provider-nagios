@@ -49,7 +49,7 @@ func (c *Client) do(ctx context.Context, method, nagiosURL string, body io.Reade
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return io.ReadAll(resp.Body)
 }

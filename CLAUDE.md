@@ -12,11 +12,14 @@ A Terraform provider for Nagios XI, built on `terraform-plugin-framework`. It wr
 go build ./...              # build the provider binary
 go vet ./...                # static analysis, run before every commit
 gofmt -l -w internal/ main.go   # format (CI does not auto-format for you)
+golangci-lint run ./...     # broader lint pass (staticcheck, unused, errcheck, etc.), also enforced in CI
 go test ./internal/client/...   # unit tests, no external dependencies
 
 # Single unit test:
 go test ./internal/client/... -run TestBuildURL_PUT_ServiceAppendsDescriptionSegment -v
 ```
+
+A `.pre-commit-config.yaml` runs `gofmt`/`go vet`/`golangci-lint` automatically on changed files at commit time (`pre-commit install` once per clone). It does not run `go build`, unit tests, or acceptance tests.
 
 ### Acceptance tests
 
@@ -33,6 +36,8 @@ TF_ACC=1 go test -v -count=1 ./internal/provider/... -run TestAccHostBasic    # 
 ```
 
 `get-api-token.sh` must be run with `test/docker/nagiosxi/` as the working directory (it relies on `docker compose` finding the compose file via cwd). Always pass `-count=1` when re-running acceptance tests — Go caches test results by default, which silently skips re-hitting the live container.
+
+**Run the full acceptance suite before opening a PR that touches `internal/client` or `internal/provider`.** CI does not do this for you — `.github/workflows/test.yml` only runs unit tests and lint, since booting the Docker instance takes ~50 minutes and `TF_ACC` is never set in CI. Every real bug found while building this provider (the `getX`-never-returns-nil bug, `free_variables` never round-tripping correctly, `2d_coords`/`3d_coords` being invalid Terraform attribute names) was caught by actually running the acceptance suite against a live instance — none of them were caught by `go build`, `go vet`, or a unit test.
 
 The container reports itself `healthy` once installed; `docker compose ps` from `test/docker/nagiosxi/` confirms this. See `test/docker/nagiosxi/README.md` for the installer quirks that were worked around to get it booting (Rocky Linux OS-detection, php-fpm ACL support, etc.) — that layer is unrelated to the provider code itself.
 

@@ -23,13 +23,13 @@ func buildURL(baseURL, token, objectType, method, objectName, name, oldVal, obje
 	var nagiosURL strings.Builder
 
 	var apiType string
-	switch {
-	case objectType == "applyconfig":
+	switch objectType {
+	case "applyconfig":
 		apiType = "system"
 		if method != http.MethodPost {
 			return "", errors.New("you must use a HTTP POST when performing an applyconfig")
 		}
-	case objectType == "authserver":
+	case "authserver":
 		apiType = "system"
 	default:
 		apiType = "config"

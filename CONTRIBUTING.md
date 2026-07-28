@@ -12,9 +12,21 @@
 go build ./...
 go vet ./...
 gofmt -l -w internal/ main.go
+golangci-lint run ./...
 ```
 
-Run these before opening a PR. `go vet` and a build are also enforced in CI (`.github/workflows/test.yml`).
+Run these before opening a PR. `go build`/`go vet`/`golangci-lint` are also enforced in CI (`.github/workflows/test.yml`).
+
+### Pre-commit hooks (optional but recommended)
+
+A [pre-commit](https://pre-commit.com) config is provided to catch formatting/vet/lint issues at commit time instead of in CI:
+
+```bash
+pip install pre-commit   # or: brew install pre-commit
+pre-commit install       # runs the hooks automatically on every commit from then on
+```
+
+This runs `gofmt`, `go vet`, and `golangci-lint` on changed files, plus basic file hygiene (trailing whitespace, end-of-file newlines). It does not run `go build` or any tests — those still happen in CI and before a PR (see below).
 
 ## Testing
 
@@ -53,5 +65,7 @@ Docs are generated from schema `Description` fields and the example `.tf` files 
 
 ## Pull requests
 
+- **Run the acceptance test suite before opening a PR** (see Testing above) if your change touches `internal/client` or `internal/provider` at all. CI only runs unit tests and lint - it does not boot the Docker Nagios instance or set `TF_ACC`, so acceptance failures will not be caught automatically. This is not optional for resource/client changes: several real bugs in this provider (the `getX`-never-returns-nil bug, the `free_variables` round-trip bug, the `2d_coords`/`3d_coords` invalid-attribute-name bug) were only ever caught by actually running the suite against a live instance, not by build/vet/unit tests.
 - Keep the PR focused; call out any behavior changes (not just refactors) explicitly in the description, since this provider talks to a real external system with quirks that are easy to accidentally "fix" into breakage.
 - Include acceptance test coverage for new resources/data sources, following the existing `TestAcc<Type>Basic` / `TestAcc<Type>CreateAfterManualDestroy` / `TestAcc<Type>UpdateName` pattern.
+- Fill out the PR template's Testing checklist honestly - it exists specifically to make sure the acceptance suite was actually run, not skipped.
