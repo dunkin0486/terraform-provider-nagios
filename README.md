@@ -3,6 +3,7 @@
 Terraform provider for Nagios XI
 
 [![test](https://github.com/dunkin0486/terraform-provider-nagios/actions/workflows/test.yml/badge.svg)](https://github.com/dunkin0486/terraform-provider-nagios/actions/workflows/test.yml)
+[![Terraform Registry](https://img.shields.io/badge/terraform--registry-dunkin0486%2Fnagios-844FBA?logo=terraform)](https://registry.terraform.io/providers/dunkin0486/nagios/latest)
 
 ## Supported Nagios XI versions
 
