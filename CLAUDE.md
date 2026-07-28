@@ -49,6 +49,10 @@ tfplugindocs generate   # regenerates docs/ from schema Description fields + exa
 
 Docs are generated, not hand-written. Never edit `docs/*.md` directly — edit the `Description` field on the relevant schema attribute in `internal/provider/`, or the example `.tf` file in `examples/`, and regenerate.
 
+### Commit messages and releases
+
+Releases are automated via [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release-please.yml`): it parses [Conventional Commits](https://www.conventionalcommits.org/) prefixes on `main` to decide the next version and drive `CHANGELOG.md`. **PR titles/merge commits need a `fix:`/`feat:`/`feat!:` (or `BREAKING CHANGE:` footer) prefix** or they won't be picked up as release-worthy — see CONTRIBUTING.md for the full mapping. Don't hand-edit `CHANGELOG.md`; release-please owns it now.
+
 ## Architecture
 
 Two packages, deliberately separated by an import boundary:
