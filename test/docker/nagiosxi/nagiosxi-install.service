@@ -1,0 +1,19 @@
+[Unit]
+Description=Nagios XI first-boot non-interactive install
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/nagiosxi/.installed
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/nagiosxi
+ExecStart=/opt/nagiosxi/fullinstall -n -f
+ExecStartPost=/bin/mkdir -p /var/lib/nagiosxi
+ExecStartPost=/bin/touch /var/lib/nagiosxi/.installed
+TimeoutStartSec=0
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

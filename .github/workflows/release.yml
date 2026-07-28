@@ -11,25 +11,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
         with:
-          go-version: '1.22'
-      - name: build
-        run: |
-          mkdir -p dist
-          for os_arch in linux/amd64 darwin/amd64 windows/amd64; do
-            os="${os_arch%/*}"
-            arch="${os_arch#*/}"
-            out="dist/terraform-provider-nagios_${os}_${arch}"
-            if [ "$os" = "windows" ]; then
-              out="${out}.exe"
-            fi
-            GOOS="$os" GOARCH="$arch" go build -o "$out" .
-          done
-          cd dist && gzip *
-      - name: release
-        uses: softprops/action-gh-release@v2
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
         with:
-          files: dist/*
-          generate_release_notes: true
+          go-version: '1.25'
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
