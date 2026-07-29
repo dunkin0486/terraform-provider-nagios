@@ -27,10 +27,15 @@ jobs:
       # PR it didn't author. Bot-bypass branch protection isn't an option
       # here - GitHub restricts bypass actors to organization-owned repos,
       # confirmed via both the classic and ruleset APIs on this personal repo.
+      # gh infers the target repo from the local git remote when --repo isn't
+      # given, and this job never checks the repo out - there's no .git dir
+      # for it to look at. Pass --repo explicitly instead of adding a
+      # checkout step that nothing else here needs.
       - name: approve and auto-merge the release PR
         if: ${{ steps.release.outputs.prs_created == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_PAT }}
+          GH_REPO: ${{ github.repository }}
           PR_JSON: ${{ steps.release.outputs.pr }}
         run: |
           PR_NUMBER=$(jq -r '.number' <<< "$PR_JSON")
