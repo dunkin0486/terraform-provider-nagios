@@ -74,6 +74,7 @@ resource "nagios_host" "example" {
 - `notification_options` (String) Determines when Nagios should alert if a host is one or more of the following option: 'o' up, 'd' down, 'u' unreachable, 'r' recovery, 'f' flapping or 's' scheduled downtime
 - `notifications_enabled` (Boolean) Determines if Nagios should send notifications
 - `obsess_over_host` (Boolean) Sets whether or not Nagios 'obsesses' over the host using the ochp_command
+- `parents` (Set of String) A list of hosts that are used to determine the network reachability of this host - if a parent host is down or unreachable, this host is marked unreachable rather than down
 - `passive_checks_enabled` (Boolean) Sets whether or not passive checks are enabled for the host
 - `process_perf_data` (Boolean) Determines if Nagios should process performance data
 - `register` (Boolean) Determines if the host will be marked as active or inactive

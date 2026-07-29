@@ -45,6 +45,7 @@ type hostModel struct {
 	Templates                  types.Set    `tfsdk:"templates"`
 	CheckCommand               types.String `tfsdk:"check_command"`
 	ContactGroups              types.Set    `tfsdk:"contact_groups"`
+	Parents                    types.Set    `tfsdk:"parents"`
 	Notes                      types.String `tfsdk:"notes"`
 	NotesURL                   types.String `tfsdk:"notes_url"`
 	ActionURL                  types.String `tfsdk:"action_url"`
@@ -140,6 +141,11 @@ func (r *hostResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "A list of the contact groups that should be notified if the host goes down",
+			},
+			"parents": schema.SetAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "A list of hosts that are used to determine the network reachability of this host - if a parent host is down or unreachable, this host is marked unreachable rather than down",
 			},
 			"notes": schema.StringAttribute{
 				Optional:    true,
@@ -423,6 +429,8 @@ func hostFromModel(ctx context.Context, m *hostModel) (*client.Host, diag.Diagno
 	diags.Append(d...)
 	contactGroups, d := setToStrings(ctx, m.ContactGroups)
 	diags.Append(d...)
+	parents, d := setToStrings(ctx, m.Parents)
+	diags.Append(d...)
 	flapDetectionOptions, d := setToStrings(ctx, m.FlapDetectionOptions)
 	diags.Append(d...)
 	freeVariables, d := mapToStrings(ctx, m.FreeVariables)
@@ -445,6 +453,7 @@ func hostFromModel(ctx context.Context, m *hostModel) (*client.Host, diag.Diagno
 		Templates:                  templates,
 		CheckCommand:               m.CheckCommand.ValueString(),
 		ContactGroups:              contactGroups,
+		Parents:                    parents,
 		Notes:                      m.Notes.ValueString(),
 		NotesURL:                   m.NotesURL.ValueString(),
 		ActionURL:                  m.ActionURL.ValueString(),
@@ -507,6 +516,10 @@ func modelFromHost(ctx context.Context, m *hostModel, h *client.Host) diag.Diagn
 	contactGroups, d := stringsToSet(ctx, h.ContactGroups)
 	diags.Append(d...)
 	m.ContactGroups = contactGroups
+
+	parents, d := stringsToSet(ctx, h.Parents)
+	diags.Append(d...)
+	m.Parents = parents
 
 	m.Notes = stringOrNull(h.Notes)
 	m.NotesURL = stringOrNull(h.NotesURL)

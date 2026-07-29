@@ -63,6 +63,7 @@ output "web01_address" {
 - `notification_period` (String)
 - `notifications_enabled` (Boolean)
 - `obsess_over_host` (Boolean)
+- `parents` (Set of String)
 - `passive_checks_enabled` (Boolean)
 - `process_perf_data` (Boolean)
 - `register` (Boolean)
