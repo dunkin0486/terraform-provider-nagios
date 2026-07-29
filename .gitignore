@@ -2,6 +2,7 @@ terraform-provider-nagios*
 bin/
 /dist/
 *.tf
+!examples/**/*.tf
 *.tfvars
 *.log
 *.tfstate*
