@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## [2.1.2](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.1...v2.1.2) (2026-07-29)
+
+
+### Bug Fixes
+
+* give gh a repo context in the release-please auto-merge step ([#115](https://github.com/dunkin0486/terraform-provider-nagios/issues/115)) ([ece3e3d](https://github.com/dunkin0486/terraform-provider-nagios/commit/ece3e3d3452a6402e5eb4029a87fc73e7f196a3c))
+
+## [2.1.1](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.0...v2.1.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* track examples/**/*.tf and terraform fmt them ([#112](https://github.com/dunkin0486/terraform-provider-nagios/issues/112)) ([e29b307](https://github.com/dunkin0486/terraform-provider-nagios/commit/e29b307052f704cfb04b5c181bcd5c08bee38739)), closes [#110](https://github.com/dunkin0486/terraform-provider-nagios/issues/110)
+
 ## [2.1.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.0.1...v2.1.0) (2026-07-29)
 
 
