@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [2.1.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.0.1...v2.1.0) (2026-07-29)
+
+
+### Features
+
+* add parents field to nagios_host ([#109](https://github.com/dunkin0486/terraform-provider-nagios/issues/109)) ([e193be4](https://github.com/dunkin0486/terraform-provider-nagios/commit/e193be475ec457296e0594a381a40cbc79f1f6d0))
+
+
+### Bug Fixes
+
+* run test workflow once per PR instead of twice ([#102](https://github.com/dunkin0486/terraform-provider-nagios/issues/102)) ([547e855](https://github.com/dunkin0486/terraform-provider-nagios/commit/547e8559f17bad0f88c3f961b0d748e31d1985a0)), closes [#101](https://github.com/dunkin0486/terraform-provider-nagios/issues/101)
+
 ## 2.0.0 (July 28, 2026)
 
 BREAKING CHANGES:
