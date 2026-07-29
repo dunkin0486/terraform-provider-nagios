@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.1.1](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.0...v2.1.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* track examples/**/*.tf and terraform fmt them ([#112](https://github.com/dunkin0486/terraform-provider-nagios/issues/112)) ([e29b307](https://github.com/dunkin0486/terraform-provider-nagios/commit/e29b307052f704cfb04b5c181bcd5c08bee38739)), closes [#110](https://github.com/dunkin0486/terraform-provider-nagios/issues/110)
+
 ## [2.1.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.0.1...v2.1.0) (2026-07-29)
 
 
