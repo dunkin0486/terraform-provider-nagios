@@ -21,6 +21,7 @@ type Host struct {
 	Templates                  []string          `json:"use,omitempty"`
 	CheckCommand               string            `json:"check_command,omitempty"`
 	ContactGroups              []string          `json:"contact_groups,omitempty"`
+	Parents                    []string          `json:"parents,omitempty"`
 	Notes                      string            `json:"notes,omitempty"`
 	NotesURL                   string            `json:"notes_url,omitempty"`
 	ActionURL                  string            `json:"action_url,omitempty"`

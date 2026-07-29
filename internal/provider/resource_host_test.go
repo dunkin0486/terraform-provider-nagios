@@ -88,6 +88,86 @@ func TestAccHostUpdateName(t *testing.T) {
 	})
 }
 
+func TestAccHostParents(t *testing.T) {
+	firstParentName := "tf_" + acctest.RandString(10)
+	secondParentName := "tf_" + acctest.RandString(10)
+	childName := "tf_" + acctest.RandString(10)
+	rName := "nagios_host.child"
+	dataSourceName := "data.nagios_host.child_read"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckHostDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccHostResourceWithParents(firstParentName, secondParentName, childName, firstParentName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckHostExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "parents.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "parents.*", firstParentName),
+					resource.TestCheckResourceAttrPair(dataSourceName, "parents", rName, "parents"),
+				),
+			},
+			{
+				// Update: swap to the other parent host, confirming the
+				// change is applied rather than just accepted at create.
+				Config: testAccHostResourceWithParents(firstParentName, secondParentName, childName, secondParentName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckHostExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "parents.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "parents.*", secondParentName),
+					resource.TestCheckResourceAttrPair(dataSourceName, "parents", rName, "parents"),
+				),
+			},
+		},
+	})
+}
+
+func testAccHostResourceWithParents(firstParentName, secondParentName, childName, activeParentName string) string {
+	return fmt.Sprintf(`
+resource "nagios_host" "parent1" {
+	host_name              = %[1]q
+	address                = "127.0.0.1"
+	max_check_attempts     = "5"
+	check_period            = "24x7"
+	notification_interval   = "10"
+	notification_period     = "24x7"
+	contacts                = ["nagiosadmin"]
+	templates                = ["generic-host"]
+}
+
+resource "nagios_host" "parent2" {
+	host_name              = %[2]q
+	address                = "127.0.0.1"
+	max_check_attempts     = "5"
+	check_period            = "24x7"
+	notification_interval   = "10"
+	notification_period     = "24x7"
+	contacts                = ["nagiosadmin"]
+	templates                = ["generic-host"]
+}
+
+resource "nagios_host" "child" {
+	host_name              = %[3]q
+	address                = "127.0.0.2"
+	max_check_attempts     = "5"
+	check_period            = "24x7"
+	notification_interval   = "10"
+	notification_period     = "24x7"
+	contacts                = ["nagiosadmin"]
+	templates                = ["generic-host"]
+	parents                  = [%[4]q]
+
+	depends_on = [nagios_host.parent1, nagios_host.parent2]
+}
+
+data "nagios_host" "child_read" {
+	host_name = nagios_host.child.host_name
+}
+`, firstParentName, secondParentName, childName, activeParentName)
+}
+
 func testAccHostResourceBasic(name, alias, address, maxCheckAttempts, checkPeriod, notificationInterval, notificationPeriod, contacts, templates string) string {
 	return fmt.Sprintf(`
 resource "nagios_host" "host" {
