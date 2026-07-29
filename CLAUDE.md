@@ -41,6 +41,19 @@ TF_ACC=1 go test -v -count=1 ./internal/provider/... -run TestAccHostBasic    # 
 
 The container reports itself `healthy` once installed; `docker compose ps` from `test/docker/nagiosxi/` confirms this. See `test/docker/nagiosxi/README.md` for the installer quirks that were worked around to get it booting (Rocky Linux OS-detection, php-fpm ACL support, etc.) — that layer is unrelated to the provider code itself.
 
+### Test-driven development
+
+New `internal/client`/`internal/provider` behavior is written test-first, not implementation-first. This is how the original framework rewrite was done (see the closed "Phase 3: TDD rewrite - ..." issues, #74-81) and it's the expected workflow for new work, not just historical practice.
+
+For a new field/resource/data source:
+
+1. Write the acceptance test (or unit test, for pure `internal/client` logic) first, asserting the behavior you want.
+2. Run it against the live Docker instance and confirm it fails for the expected reason (missing schema attribute, unset field, etc.) — a red test that fails for the wrong reason (a typo, a config error) proves nothing.
+3. Implement the minimum change to make it pass.
+4. Run the full acceptance suite before opening the PR, per the rule above.
+
+Skipping straight to implementation and writing tests afterward is a common shortcut to avoid — it's easy to end up with tests that just confirm what the code already does rather than what it's supposed to do.
+
 ### Docs
 
 ```bash
