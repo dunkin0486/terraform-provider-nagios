@@ -19,6 +19,24 @@ jobs:
         with:
           release-type: go
 
+      # main requires 1 approving review before merge, and GitHub won't let
+      # a PR approve itself - release-please's PR is authored by
+      # github-actions[bot] via the default GITHUB_TOKEN, so that token can
+      # never approve it. RELEASE_PLEASE_PAT is a personal access token
+      # belonging to a human maintainer (not the bot), so it can approve a
+      # PR it didn't author. Bot-bypass branch protection isn't an option
+      # here - GitHub restricts bypass actors to organization-owned repos,
+      # confirmed via both the classic and ruleset APIs on this personal repo.
+      - name: approve and auto-merge the release PR
+        if: ${{ steps.release.outputs.prs_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_PAT }}
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          PR_NUMBER=$(jq -r '.number' <<< "$PR_JSON")
+          gh pr review "$PR_NUMBER" --approve --body "Auto-approved: release-please version bump."
+          gh pr merge "$PR_NUMBER" --auto --squash
+
       # release-please pushes the tag/release using the default GITHUB_TOKEN,
       # which GitHub deliberately excludes from triggering other workflows
       # (avoids infinite trigger loops) - so release.yml's `on: push: tags`
