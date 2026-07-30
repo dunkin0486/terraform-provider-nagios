@@ -39,6 +39,10 @@ TF_ACC=1 go test -v -count=1 ./internal/provider/... -run TestAccHostBasic    # 
 
 **Run the full acceptance suite before opening a PR that touches `internal/client` or `internal/provider`.** CI does not do this for you — `.github/workflows/test.yml` only runs unit tests and lint, since booting the Docker instance takes ~50 minutes and `TF_ACC` is never set in CI. Every real bug found while building this provider (the `getX`-never-returns-nil bug, `free_variables` never round-tripping correctly, `2d_coords`/`3d_coords` being invalid Terraform attribute names) was caught by actually running the acceptance suite against a live instance — none of them were caught by `go build`, `go vet`, or a unit test.
 
+### Coverage goal
+
+Codecov reports coverage on every PR (`codecov.yml`) but doesn't gate merges — `informational: true` on both `project` and `patch`, intentionally, since acceptance-tested `internal/provider` code and TDD'd `internal/client` code aren't well served by a hard percentage gate. Even so, treat 80% unit coverage (`go test ./internal/client/... ./internal/provider/... -cover`) as a goal to work toward on any package you touch, not just a number Codecov prints — new client/provider logic should come with the unit tests the TDD workflow above already asks for, and that in turn is what moves this number. Baseline at the time this was written: `internal/client` ~57%, `internal/provider` ~39%.
+
 The container reports itself `healthy` once installed; `docker compose ps` from `test/docker/nagiosxi/` confirms this. See `test/docker/nagiosxi/README.md` for the installer quirks that were worked around to get it booting (Rocky Linux OS-detection, php-fpm ACL support, etc.) — that layer is unrelated to the provider code itself.
 
 ### Test-driven development
