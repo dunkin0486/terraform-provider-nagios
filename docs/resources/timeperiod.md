@@ -43,9 +43,9 @@ resource "nagios_timeperiod" "business_hours" {
 - `monday` (String) Time range(s) for Monday, e.g. "09:00-17:00" or "09:00-12:00,13:00-17:00". Omit to leave Monday unavailable.
 - `saturday` (String) Time range(s) for Saturday, e.g. "09:00-17:00" or "09:00-12:00,13:00-17:00". Omit to leave Saturday unavailable.
 - `sunday` (String) Time range(s) for Sunday, e.g. "09:00-17:00" or "09:00-12:00,13:00-17:00". Omit to leave Sunday unavailable.
+- `templates` (Set of String) Names of other timeperiod templates this timeperiod should inherit from. Maps to Nagios's `use` field - named `templates` here to match the same field on nagios_host/nagios_service/nagios_contact.
 - `thursday` (String) Time range(s) for Thursday, e.g. "09:00-17:00" or "09:00-12:00,13:00-17:00". Omit to leave Thursday unavailable.
 - `tuesday` (String) Time range(s) for Tuesday, e.g. "09:00-17:00" or "09:00-12:00,13:00-17:00". Omit to leave Tuesday unavailable.
-- `use` (Set of String) Names of other timeperiod templates this timeperiod should inherit from.
 - `wednesday` (String) Time range(s) for Wednesday, e.g. "09:00-17:00" or "09:00-12:00,13:00-17:00". Omit to leave Wednesday unavailable.
 
 ## Import

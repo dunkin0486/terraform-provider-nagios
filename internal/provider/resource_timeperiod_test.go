@@ -98,6 +98,49 @@ func TestAccTimeperiodRequiresReplaceOnNameChange(t *testing.T) {
 	})
 }
 
+// TestAccTimeperiodTemplatesAndExclude exercises the templates/exclude
+// types.Set attributes end-to-end against a live instance. CLAUDE.md is
+// explicit that round-trip bugs in Set-typed attributes only ever surface
+// via the acceptance suite, never unit tests (see the free_variables
+// history) - templates/exclude are otherwise only unit-tested against a
+// mocked JSON array, never against the real API's comma-joined-on-write,
+// array-on-read shape. "24x7" and "us-holidays" are default timeperiods
+// seeded on every fresh Nagios XI instance.
+func TestAccTimeperiodTemplatesAndExclude(t *testing.T) {
+	tpName := "tf_" + acctest.RandString(10)
+	tpAlias := "tf_" + acctest.RandString(10)
+	rName := "nagios_timeperiod.timeperiod"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckTimeperiodDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccTimeperiodResourceTemplatesAndExclude(tpName, tpAlias),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckTimeperiodExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "templates.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "templates.*", "24x7"),
+					resource.TestCheckResourceAttr(rName, "exclude.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "exclude.*", "us-holidays"),
+				),
+			},
+		},
+	})
+}
+
+func testAccTimeperiodResourceTemplatesAndExclude(name, alias string) string {
+	return fmt.Sprintf(`
+resource "nagios_timeperiod" "timeperiod" {
+	name      = %[1]q
+	alias     = %[2]q
+	templates = ["24x7"]
+	exclude   = ["us-holidays"]
+}
+`, name, alias)
+}
+
 func testAccTimeperiodResourceBasic(name, alias, monday string) string {
 	return fmt.Sprintf(`
 resource "nagios_timeperiod" "timeperiod" {

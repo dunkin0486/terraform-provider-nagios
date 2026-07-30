@@ -35,7 +35,7 @@ type timeperiodResource struct {
 type timeperiodModel struct {
 	Name      types.String `tfsdk:"name"`
 	Alias     types.String `tfsdk:"alias"`
-	Use       types.Set    `tfsdk:"use"`
+	Templates types.Set    `tfsdk:"templates"`
 	Exclude   types.Set    `tfsdk:"exclude"`
 	Sunday    types.String `tfsdk:"sunday"`
 	Monday    types.String `tfsdk:"monday"`
@@ -54,10 +54,14 @@ func (r *timeperiodResource) Metadata(ctx context.Context, req resource.Metadata
 // Timeperiod doc comment in internal/client/timeperiod.go): it reports a
 // fake success but never changes the object, whether renaming it or editing
 // any other field in place. Every attribute here is therefore
-// RequiresReplace, the same treatment resource_authserver.go gives
-// authserver's similarly broken update route - changing any of them
-// destroys and recreates the resource rather than attempting an update that
-// can never actually take effect.
+// RequiresReplace - changing any of them destroys and recreates the
+// resource rather than attempting an update that can never actually take
+// effect. This is the same RequiresReplace-everything treatment
+// resource_authserver.go gives authserver's similarly broken update route,
+// though the two are unreachable for different reasons: authserver's PUT
+// fails with a clean, parseable error that just doesn't match
+// existsErrorFor's expected string, while timeperiod's PUT response never
+// parses as JSON at all (see UpdateTimeperiod's error-wrapping below).
 func (r *timeperiodResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Manages a Nagios XI timeperiod.",
@@ -74,10 +78,10 @@ func (r *timeperiodResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Validators:    []validator.String{stringvalidator.LengthBetween(1, 255)},
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
-			"use": schema.SetAttribute{
+			"templates": schema.SetAttribute{
 				Optional:      true,
 				ElementType:   types.StringType,
-				Description:   "Names of other timeperiod templates this timeperiod should inherit from.",
+				Description:   "Names of other timeperiod templates this timeperiod should inherit from. Maps to Nagios's `use` field - named `templates` here to match the same field on nagios_host/nagios_service/nagios_contact.",
 				PlanModifiers: []planmodifier.Set{setplanmodifier.RequiresReplace()},
 			},
 			"exclude": schema.SetAttribute{
@@ -241,7 +245,7 @@ func (r *timeperiodResource) ImportState(ctx context.Context, req resource.Impor
 func timeperiodFromModel(ctx context.Context, m *timeperiodModel) (*client.Timeperiod, diag.Diagnostics) {
 	var diags diag.Diagnostics
 
-	use, d := setToStrings(ctx, m.Use)
+	templates, d := setToStrings(ctx, m.Templates)
 	diags.Append(d...)
 	exclude, d := setToStrings(ctx, m.Exclude)
 	diags.Append(d...)
@@ -252,7 +256,7 @@ func timeperiodFromModel(ctx context.Context, m *timeperiodModel) (*client.Timep
 	return &client.Timeperiod{
 		Name:      m.Name.ValueString(),
 		Alias:     m.Alias.ValueString(),
-		Templates: use,
+		Templates: templates,
 		Exclude:   exclude,
 		Sunday:    m.Sunday.ValueString(),
 		Monday:    m.Monday.ValueString(),
@@ -270,9 +274,9 @@ func modelFromTimeperiod(ctx context.Context, m *timeperiodModel, tp *client.Tim
 	m.Name = types.StringValue(tp.Name)
 	m.Alias = types.StringValue(tp.Alias)
 
-	use, d := stringsToSet(ctx, tp.Templates)
+	templates, d := stringsToSet(ctx, tp.Templates)
 	diags.Append(d...)
-	m.Use = use
+	m.Templates = templates
 
 	exclude, d := stringsToSet(ctx, tp.Exclude)
 	diags.Append(d...)

@@ -3,8 +3,10 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // Timeperiod mirrors the fields Nagios XI's timeperiod object API
@@ -25,9 +27,19 @@ import (
 // parseable error ("Unknown API endpoint.") instead of unparseable output.
 //
 // Calendar-date exceptions (e.g. Nagios's "december 25" key) are
-// intentionally not modeled: the API returns these with odd fixed-width
-// whitespace padding baked into the key itself, and are out of scope here -
-// only the standard weekday fields plus use/exclude are exposed.
+// intentionally not modeled: also confirmed against a live instance, the API
+// returns these with odd fixed-width whitespace padding baked into the key
+// itself (e.g. "december 25            "), and are out of scope here - only
+// the standard weekday fields plus use/exclude are exposed.
+//
+// One more confirmed-against-a-live-instance quirk, specific to this object
+// type: every other object type with a "use" (template inheritance) field -
+// host, service, contact - returns it as a JSON array even for a single
+// value (e.g. {"use": ["linux-server"]}). timeperiod's "use" never comes
+// back as an array at all, for one value or many: it's always a plain
+// comma-joined string (e.g. {"use": "24x7,workhours"}), unlike this same
+// object's own "exclude" field, which does round-trip as an array. See
+// Timeperiod's UnmarshalJSON below, which normalizes both possible shapes.
 type Timeperiod struct {
 	Name      string   `json:"timeperiod_name"`
 	Alias     string   `json:"alias"`
@@ -40,6 +52,43 @@ type Timeperiod struct {
 	Thursday  string   `json:"thursday,omitempty"`
 	Friday    string   `json:"friday,omitempty"`
 	Saturday  string   `json:"saturday,omitempty"`
+}
+
+// UnmarshalJSON normalizes the "use" field's inconsistent wire shape (see
+// the Timeperiod doc comment above) into []string regardless of whether
+// Nagios sent a JSON array or a comma-joined string. Every other field
+// decodes via the struct's own json tags as usual; only "use" needs special
+// handling. This only affects decoding a response body - setURLParams
+// already comma-joins []string identically for every list-valued field on
+// write, so encoding is unaffected.
+func (tp *Timeperiod) UnmarshalJSON(data []byte) error {
+	type timeperiodAlias Timeperiod
+	aux := &struct {
+		Use json.RawMessage `json:"use,omitempty"`
+		*timeperiodAlias
+	}{timeperiodAlias: (*timeperiodAlias)(tp)}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if len(aux.Use) == 0 {
+		return nil
+	}
+
+	var asArray []string
+	if err := json.Unmarshal(aux.Use, &asArray); err == nil {
+		tp.Templates = asArray
+		return nil
+	}
+
+	var asString string
+	if err := json.Unmarshal(aux.Use, &asString); err != nil {
+		return err
+	}
+	if asString != "" {
+		tp.Templates = strings.Split(asString, ",")
+	}
+	return nil
 }
 
 // NewTimeperiod creates a timeperiod and applies the config change.
@@ -84,6 +133,14 @@ func (c *Client) GetTimeperiod(ctx context.Context, name string) (*Timeperiod, e
 // error - resource_timeperiod.go's RequiresReplace schema is what actually
 // keeps this reachable only in the fallback/defensive sense, matching the
 // pattern used for authserver.
+//
+// The existsErrorFor fallback below is structural parity with every other
+// UpdateX method, not a reachable path for timeperiod specifically: Nagios's
+// PUT response for this object type never parses as JSON in the first place
+// (see the doc comment above), so parseCommandResponse never gets far enough
+// to produce the "Does the timeperiod exist?" string existsErrorFor looks
+// for. The non-fallback error branch is wrapped below precisely because it's
+// the one a caller will actually observe.
 func (c *Client) UpdateTimeperiod(ctx context.Context, tp *Timeperiod, oldName string) error {
 	nagiosURL, err := buildURL(c.baseURL, c.token, "timeperiod", http.MethodPut, "timeperiod_name", tp.Name, oldName, "")
 	if err != nil {
@@ -95,7 +152,7 @@ func (c *Client) UpdateTimeperiod(ctx context.Context, tp *Timeperiod, oldName s
 		if existsErrorFor("timeperiod", err) {
 			return c.NewTimeperiod(ctx, tp)
 		}
-		return err
+		return fmt.Errorf("nagios's timeperiod update API is a known, permanent no-op (see the Timeperiod doc comment) - this should be unreachable via Terraform since every schema attribute is RequiresReplace; seeing this error means that invariant has regressed: %w", err)
 	}
 	return c.applyConfig(ctx)
 }
