@@ -10,6 +10,22 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25'
+      - run: go vet ./...
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+      - uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: '1.25'
+          repo-checkout: false
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -21,13 +37,5 @@ jobs:
         with:
           terraform_wrapper: false
       - run: go build ./...
-      - run: go vet ./...
-      - uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.12.2
-      - uses: golang/govulncheck-action@v1
-        with:
-          go-version-input: '1.25'
-          repo-checkout: false
       - run: go test -v ./internal/...
       - run: terraform fmt -check -recursive examples/
