@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.2.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.3...v2.2.0) (2026-07-30)
+
+
+### Features
+
+* add nagios_timeperiod resource ([#86](https://github.com/dunkin0486/terraform-provider-nagios/issues/86) phase 2) ([#128](https://github.com/dunkin0486/terraform-provider-nagios/issues/128)) ([460c912](https://github.com/dunkin0486/terraform-provider-nagios/commit/460c912d042f00adce751ef828b088bf2018a071))
+
 ## [2.1.3](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.2...v2.1.3) (2026-07-30)
 
 
