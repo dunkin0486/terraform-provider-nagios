@@ -59,4 +59,13 @@ func TestModelFromContactgroup(t *testing.T) {
 	if !m.ContactgroupMembers.IsNull() {
 		t.Errorf("ContactgroupMembers = %#v, want null for an empty API response value", m.ContactgroupMembers)
 	}
+
+	var members []string
+	diags = m.Members.ElementsAs(ctx, &members, false)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics reading Members: %v", diags)
+	}
+	if len(members) != 1 || members[0] != "jdoe" {
+		t.Errorf("Members = %#v, want [jdoe]", members)
+	}
 }

@@ -12,8 +12,6 @@ import (
 func TestServicegroupFromModel(t *testing.T) {
 	ctx := context.Background()
 
-	// Nagios expects members as a flat, alternating (host, service) list -
-	// see resource_servicegroup.go's schema description.
 	members, _ := types.SetValueFrom(ctx, types.StringType, []string{"web01", "HTTP"})
 	m := &servicegroupModel{
 		Name:    types.StringValue("http-checks"),
