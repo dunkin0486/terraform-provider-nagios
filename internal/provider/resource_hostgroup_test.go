@@ -103,6 +103,45 @@ func TestAccHostgroupUpdateName(t *testing.T) {
 	})
 }
 
+func TestAccHostgroupNestedMembers(t *testing.T) {
+	innerName := "tf_" + acctest.RandString(10)
+	outerName := "tf_" + acctest.RandString(10)
+	rOuterName := "nagios_hostgroup.outer"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckHostgroupDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccHostgroupResourceNested(innerName, outerName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckHostgroupExists(t, rOuterName),
+					resource.TestCheckResourceAttr(rOuterName, "hostgroup_members.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rOuterName, "hostgroup_members.*", innerName),
+				),
+			},
+		},
+	})
+}
+
+func testAccHostgroupResourceNested(innerName, outerName string) string {
+	return fmt.Sprintf(`
+resource "nagios_hostgroup" "inner" {
+	name  = %[1]q
+	alias = %[1]q
+}
+
+resource "nagios_hostgroup" "outer" {
+	name              = %[2]q
+	alias             = %[2]q
+	hostgroup_members  = [%[1]q]
+
+	depends_on = [nagios_hostgroup.inner]
+}
+`, innerName, outerName)
+}
+
 func testAccHostgroupResourceBasic(hostName, hostAddress, hostMaxCheckAttempts, hostCheckPeriod, hostNotificationInterval, hostNotificationPeriod, contacts, hostTemplates, hgName, hgAlias string) string {
 	return fmt.Sprintf(`
 resource "nagios_host" "host" {

@@ -17,6 +17,7 @@ import (
 type Service struct {
 	ServiceName                string            `json:"config_name"`
 	HostName                   []string          `json:"host_name"`
+	HostgroupName              []string          `json:"hostgroup_name,omitempty"`
 	DisplayName                string            `json:"display_name,omitempty"`
 	Description                string            `json:"service_description"`
 	CheckCommand               string            `json:"check_command"`
@@ -48,6 +49,7 @@ type Service struct {
 	NotificationOptions        []string          `json:"notification_options,omitempty"`
 	NotificationsEnabled       string            `json:"notifications_enabled,omitempty"`
 	ContactGroups              []string          `json:"contact_groups,omitempty"`
+	Servicegroups              []string          `json:"servicegroups,omitempty"`
 	Notes                      string            `json:"notes,omitempty"`
 	NotesURL                   string            `json:"notes_url,omitempty"`
 	ActionURL                  string            `json:"action_url,omitempty"`

@@ -92,6 +92,106 @@ func TestAccServiceUpdateName(t *testing.T) {
 	})
 }
 
+func TestAccServiceHostgroupName(t *testing.T) {
+	groupName := "tf_" + acctest.RandString(10)
+	serviceName := "tf_" + acctest.RandString(10)
+	description := "tf_" + acctest.RandString(10)
+	rName := "nagios_service.service"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckServiceDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccServiceResourceWithHostgroupName(groupName, serviceName, description),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckServiceExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "hostgroup_name.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "hostgroup_name.*", groupName),
+				),
+			},
+		},
+	})
+}
+
+func testAccServiceResourceWithHostgroupName(groupName, serviceName, description string) string {
+	return fmt.Sprintf(`
+resource "nagios_hostgroup" "group" {
+	name  = %[1]q
+	alias = %[1]q
+}
+
+resource "nagios_service" "service" {
+	service_name           = %[2]q
+	host_name              = ["localhost"]
+	hostgroup_name          = [%[1]q]
+	description             = %[3]q
+	check_command            = "check_http"
+	max_check_attempts       = "2"
+	check_interval            = "5"
+	retry_interval             = "5"
+	check_period                = "24x7"
+	notification_interval       = "10"
+	notification_period          = "24x7"
+	contacts                     = ["nagiosadmin"]
+	templates                    = ["generic-service"]
+
+	depends_on = [nagios_hostgroup.group]
+}
+`, groupName, serviceName, description)
+}
+
+func TestAccServiceServicegroups(t *testing.T) {
+	groupName := "tf_" + acctest.RandString(10)
+	serviceName := "tf_" + acctest.RandString(10)
+	description := "tf_" + acctest.RandString(10)
+	rName := "nagios_service.service"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckServiceDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccServiceResourceWithServicegroups(groupName, serviceName, description),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckServiceExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "servicegroups.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "servicegroups.*", groupName),
+				),
+			},
+		},
+	})
+}
+
+func testAccServiceResourceWithServicegroups(groupName, serviceName, description string) string {
+	return fmt.Sprintf(`
+resource "nagios_servicegroup" "group" {
+	name  = %[1]q
+	alias = %[1]q
+}
+
+resource "nagios_service" "service" {
+	service_name           = %[2]q
+	host_name              = ["localhost"]
+	servicegroups           = [%[1]q]
+	description             = %[3]q
+	check_command            = "check_http"
+	max_check_attempts       = "2"
+	check_interval            = "5"
+	retry_interval             = "5"
+	check_period                = "24x7"
+	notification_interval       = "10"
+	notification_period          = "24x7"
+	contacts                     = ["nagiosadmin"]
+	templates                    = ["generic-service"]
+
+	depends_on = [nagios_servicegroup.group]
+}
+`, groupName, serviceName, description)
+}
+
 func testAccServiceResourceBasic(serviceName, hostName, description, checkCommand, maxCheckAttempts, checkInterval, retryInterval, checkPeriod, notificationInterval, notificationPeriod, contacts, templates string) string {
 	return fmt.Sprintf(`
 resource "nagios_service" "service" {

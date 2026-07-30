@@ -46,6 +46,7 @@ type hostModel struct {
 	CheckCommand               types.String `tfsdk:"check_command"`
 	ContactGroups              types.Set    `tfsdk:"contact_groups"`
 	Parents                    types.Set    `tfsdk:"parents"`
+	Hostgroups                 types.Set    `tfsdk:"hostgroups"`
 	Notes                      types.String `tfsdk:"notes"`
 	NotesURL                   types.String `tfsdk:"notes_url"`
 	ActionURL                  types.String `tfsdk:"action_url"`
@@ -146,6 +147,11 @@ func (r *hostResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "A list of hosts that are used to determine the network reachability of this host - if a parent host is down or unreachable, this host is marked unreachable rather than down",
+			},
+			"hostgroups": schema.SetAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "A list of hostgroups this host should be a member of, assigned from the host side (complements a hostgroup's own `members` attribute)",
 			},
 			"notes": schema.StringAttribute{
 				Optional:    true,
@@ -431,6 +437,8 @@ func hostFromModel(ctx context.Context, m *hostModel) (*client.Host, diag.Diagno
 	diags.Append(d...)
 	parents, d := setToStrings(ctx, m.Parents)
 	diags.Append(d...)
+	hostgroups, d := setToStrings(ctx, m.Hostgroups)
+	diags.Append(d...)
 	flapDetectionOptions, d := setToStrings(ctx, m.FlapDetectionOptions)
 	diags.Append(d...)
 	freeVariables, d := mapToStrings(ctx, m.FreeVariables)
@@ -454,6 +462,7 @@ func hostFromModel(ctx context.Context, m *hostModel) (*client.Host, diag.Diagno
 		CheckCommand:               m.CheckCommand.ValueString(),
 		ContactGroups:              contactGroups,
 		Parents:                    parents,
+		Hostgroups:                 hostgroups,
 		Notes:                      m.Notes.ValueString(),
 		NotesURL:                   m.NotesURL.ValueString(),
 		ActionURL:                  m.ActionURL.ValueString(),
@@ -520,6 +529,10 @@ func modelFromHost(ctx context.Context, m *hostModel, h *client.Host) diag.Diagn
 	parents, d := stringsToSet(ctx, h.Parents)
 	diags.Append(d...)
 	m.Parents = parents
+
+	hostgroups, d := stringsToSet(ctx, h.Hostgroups)
+	diags.Append(d...)
+	m.Hostgroups = hostgroups
 
 	m.Notes = stringOrNull(h.Notes)
 	m.NotesURL = stringOrNull(h.NotesURL)

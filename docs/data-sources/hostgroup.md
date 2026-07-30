@@ -33,6 +33,7 @@ output "web_servers_members" {
 
 - `action_url` (String) URL to a third-party documentation repository containing actions to take in the event the hostgroup goes down
 - `alias` (String) The description of the hostgroup
+- `hostgroup_members` (Set of String) Nested hostgroups whose member hosts are included in this group
 - `members` (Set of String) Members of this hostgroup
 - `notes` (String) Notes about the hostgroup that may assist with troubleshooting
 - `notes_url` (String) URL to a third-party documentation repository containing more information about the hostgroup

@@ -65,6 +65,7 @@ resource "nagios_service" "example" {
 - `free_variables` (Map of String) A key/value pair of free variables to add to the service. The key must begin with an underscore.
 - `freshness_threshold` (String) The freshness threshold used for the service
 - `high_flap_threshold` (String) The maximum threshold that should be used when detecting if flapping is occurring
+- `hostgroup_name` (Set of String) A list of hostgroups whose member hosts the service should also run on, in addition to `host_name`
 - `icon_image` (String) The icon to display in Nagios
 - `icon_image_alt` (String) The text to display when hovering over the icon_image or the text to display if the icon_image is unavailable
 - `initial_state` (String) By default, Nagios will assume the service is in an OK state. Valid options are: 'd' down, 's' up or 'u' unreachable
@@ -80,6 +81,7 @@ resource "nagios_service" "example" {
 - `register` (Boolean) Determines if the service will be marked as active or inactive
 - `retain_nonstatus_information` (Boolean) Sets whether or not non-status related information should be kept for the service
 - `retain_status_information` (Boolean) Sets whether or not status related information should be kept for the service
+- `servicegroups` (Set of String) A list of servicegroups this service should be a member of, assigned from the service side
 - `templates` (Set of String) A list of service templates to apply to the service
 
 ## Import

@@ -168,6 +168,74 @@ data "nagios_host" "child_read" {
 `, firstParentName, secondParentName, childName, activeParentName)
 }
 
+func TestAccHostHostgroups(t *testing.T) {
+	firstGroupName := "tf_" + acctest.RandString(10)
+	secondGroupName := "tf_" + acctest.RandString(10)
+	hostName := "tf_" + acctest.RandString(10)
+	rName := "nagios_host.host"
+	dataSourceName := "data.nagios_host.host_read"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckHostDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccHostResourceWithHostgroups(firstGroupName, secondGroupName, hostName, firstGroupName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckHostExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "hostgroups.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "hostgroups.*", firstGroupName),
+					resource.TestCheckResourceAttrPair(dataSourceName, "hostgroups", rName, "hostgroups"),
+				),
+			},
+			{
+				// Update: swap to the other hostgroup, confirming the change
+				// is applied rather than just accepted at create.
+				Config: testAccHostResourceWithHostgroups(firstGroupName, secondGroupName, hostName, secondGroupName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckHostExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "hostgroups.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rName, "hostgroups.*", secondGroupName),
+					resource.TestCheckResourceAttrPair(dataSourceName, "hostgroups", rName, "hostgroups"),
+				),
+			},
+		},
+	})
+}
+
+func testAccHostResourceWithHostgroups(firstGroupName, secondGroupName, hostName, activeGroupName string) string {
+	return fmt.Sprintf(`
+resource "nagios_hostgroup" "group1" {
+	name  = %[1]q
+	alias = %[1]q
+}
+
+resource "nagios_hostgroup" "group2" {
+	name  = %[2]q
+	alias = %[2]q
+}
+
+resource "nagios_host" "host" {
+	host_name              = %[3]q
+	address                = "127.0.0.1"
+	max_check_attempts     = "5"
+	check_period            = "24x7"
+	notification_interval   = "10"
+	notification_period     = "24x7"
+	contacts                = ["nagiosadmin"]
+	templates                = ["generic-host"]
+	hostgroups               = [%[4]q]
+
+	depends_on = [nagios_hostgroup.group1, nagios_hostgroup.group2]
+}
+
+data "nagios_host" "host_read" {
+	host_name = nagios_host.host.host_name
+}
+`, firstGroupName, secondGroupName, hostName, activeGroupName)
+}
+
 func testAccHostResourceBasic(name, alias, address, maxCheckAttempts, checkPeriod, notificationInterval, notificationPeriod, contacts, templates string) string {
 	return fmt.Sprintf(`
 resource "nagios_host" "host" {

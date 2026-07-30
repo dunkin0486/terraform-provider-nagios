@@ -65,6 +65,7 @@ resource "nagios_host" "example" {
 - `free_variables` (Map of String) A key/value pair of free variables to add to the host. The key must begin with an underscore.
 - `freshness_threshold` (String) The freshness threshold used for the host
 - `high_flap_threshold` (String) The maximum threshold that should be used when detecting if flapping is occurring
+- `hostgroups` (Set of String) A list of hostgroups this host should be a member of, assigned from the host side (complements a hostgroup's own `members` attribute)
 - `icon_image` (String) The icon to display in Nagios
 - `icon_image_alt` (String) The text to display when hovering over the icon
 - `initial_state` (String) The state of the host when it is first added to Nagios. Valid options are: 'd' down, 's' up or 'u' unreachable

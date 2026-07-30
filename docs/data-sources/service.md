@@ -50,6 +50,7 @@ output "web01_http_check_command" {
 - `freshness_threshold` (String)
 - `high_flap_threshold` (String)
 - `host_name` (Set of String) The hosts that the service runs on
+- `hostgroup_name` (Set of String) The hostgroups whose member hosts the service also runs on
 - `icon_image` (String)
 - `icon_image_alt` (String)
 - `initial_state` (String)
@@ -69,4 +70,5 @@ output "web01_http_check_command" {
 - `retain_nonstatus_information` (Boolean)
 - `retain_status_information` (Boolean)
 - `retry_interval` (String)
+- `servicegroups` (Set of String)
 - `templates` (Set of String)

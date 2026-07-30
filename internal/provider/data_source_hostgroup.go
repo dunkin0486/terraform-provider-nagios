@@ -36,11 +36,12 @@ func (d *hostgroupDataSource) Schema(ctx context.Context, req datasource.SchemaR
 				Required:    true,
 				Description: "The name of the hostgroup. It can be up to 255 characters long.",
 			},
-			"alias":      schema.StringAttribute{Computed: true, Description: "The description of the hostgroup"},
-			"members":    schema.SetAttribute{Computed: true, ElementType: types.StringType, Description: "Members of this hostgroup"},
-			"notes":      schema.StringAttribute{Computed: true, Description: "Notes about the hostgroup that may assist with troubleshooting"},
-			"notes_url":  schema.StringAttribute{Computed: true, Description: "URL to a third-party documentation repository containing more information about the hostgroup"},
-			"action_url": schema.StringAttribute{Computed: true, Description: "URL to a third-party documentation repository containing actions to take in the event the hostgroup goes down"},
+			"alias":             schema.StringAttribute{Computed: true, Description: "The description of the hostgroup"},
+			"members":           schema.SetAttribute{Computed: true, ElementType: types.StringType, Description: "Members of this hostgroup"},
+			"hostgroup_members": schema.SetAttribute{Computed: true, ElementType: types.StringType, Description: "Nested hostgroups whose member hosts are included in this group"},
+			"notes":             schema.StringAttribute{Computed: true, Description: "Notes about the hostgroup that may assist with troubleshooting"},
+			"notes_url":         schema.StringAttribute{Computed: true, Description: "URL to a third-party documentation repository containing more information about the hostgroup"},
+			"action_url":        schema.StringAttribute{Computed: true, Description: "URL to a third-party documentation repository containing actions to take in the event the hostgroup goes down"},
 		},
 	}
 }

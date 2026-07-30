@@ -36,6 +36,7 @@ resource "nagios_servicegroup" "example" {
 - `members` (Set of String) A list of services and/or service groups that should be members of the service group. The members must be valid services and service groups within Nagios and must be active
 - `notes` (String) Notes about the servicegroup that may assist with troubleshooting
 - `notes_url` (String) URL to a third-party documentation repository containing more information about the servicegroup
+- `servicegroup_members` (Set of String) A list of other servicegroups whose member services should be included in this group (nested servicegroups)
 
 ## Import
 
