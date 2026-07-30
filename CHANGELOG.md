@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.1.3](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.2...v2.1.3) (2026-07-30)
+
+
+### Bug Fixes
+
+* mark enabled RequiresReplace on nagios_authserver ([#120](https://github.com/dunkin0486/terraform-provider-nagios/issues/120)) ([0b03f24](https://github.com/dunkin0486/terraform-provider-nagios/commit/0b03f2472a7715ba8f0cb2a025d6f0f9b2856dff)), closes [#104](https://github.com/dunkin0486/terraform-provider-nagios/issues/104)
+
 ## [2.1.2](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.1...v2.1.2) (2026-07-29)
 
 
