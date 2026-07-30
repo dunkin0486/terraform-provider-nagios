@@ -37,5 +37,11 @@ jobs:
         with:
           terraform_wrapper: false
       - run: go build ./...
-      - run: go test -v ./internal/...
+      - run: go test -v -coverprofile=coverage.out -covermode=atomic ./internal/...
       - run: terraform fmt -check -recursive examples/
+      - uses: codecov/codecov-action@v5
+        with:
+          files: coverage.out
+          flags: unit
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
