@@ -70,6 +70,20 @@ Docs are generated, not hand-written. Never edit `docs/*.md` directly — edit t
 
 Releases are automated via [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release-please.yml`): it parses [Conventional Commits](https://www.conventionalcommits.org/) prefixes on `main` to decide the next version and drive `CHANGELOG.md`. **PR titles/merge commits need a `fix:`/`feat:`/`feat!:` (or `BREAKING CHANGE:` footer) prefix** or they won't be picked up as release-worthy — see CONTRIBUTING.md for the full mapping. Don't hand-edit `CHANGELOG.md`; release-please owns it now.
 
+### Project tracking (`projects/`)
+
+Jerry worktracker files (epics/features/stories, survey research docs like `research/new-fields-existing-objects.md` and `research/api-quirks-reverification.md`) live under `projects/PROJ-001-nagios-provider-revival/` — but **that directory only exists on the `chore/proj-001-worktracker` branch**, not on `main` or feature branches. A CLAUDE.md reference to a `projects/...` path (like the `api-quirks-reverification.md` citation above) will 404 on a normal feature-branch checkout; it's not stale, you're just on the wrong branch.
+
+To read or update these docs without disturbing your current feature branch, use a worktree rather than switching branches in place:
+
+```bash
+git worktree add /path/to/scratch-dir chore/proj-001-worktracker
+# edit/commit inside that worktree, then:
+git worktree remove /path/to/scratch-dir
+```
+
+Push `chore/proj-001-worktracker` directly (it isn't merged into `main` and isn't meant to be) whenever a story/feature's status changes — e.g. marking a STORY complete after its implementation PR is verified.
+
 ## Architecture
 
 Two packages, deliberately separated by an import boundary:
