@@ -1,6 +1,6 @@
-# Active Directory example. connection_method, and every attribute besides
-# enabled, requires replacing the resource to change - Nagios's API has no
-# update support for an existing authentication server's connection details.
+# Active Directory example. Every attribute, including enabled, requires
+# replacing the resource to change - Nagios's API has no update route at
+# all for an existing authentication server (see #104).
 resource "nagios_authserver" "active_directory" {
   enabled               = true
   connection_method     = "ad"

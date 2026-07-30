@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -48,9 +49,11 @@ func (r *authServerResource) Metadata(ctx context.Context, req resource.Metadata
 	resp.TypeName = req.ProviderTypeName + "_authserver"
 }
 
-// The Nagios REST API does not support updating most authentication server
-// fields - every attribute except `enabled` is RequiresReplace, matching
-// what the live API allows (see internal/client/authserver.go).
+// The Nagios REST API has no update route for authentication servers at
+// all - PUT system/authserver always returns "Unknown API endpoint.",
+// confirmed against a live instance (see #104). Every attribute, including
+// `enabled`, is RequiresReplace: changing any of them destroys and recreates
+// the resource rather than attempting an update that can never succeed.
 func (r *authServerResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Manages a Nagios XI authentication server.",
@@ -61,10 +64,11 @@ func (r *authServerResource) Schema(ctx context.Context, req resource.SchemaRequ
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
 			"enabled": schema.BoolAttribute{
-				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(true),
-				Description: "Determines whether or not this authentication server is enabled",
+				Optional:      true,
+				Computed:      true,
+				Default:       booldefault.StaticBool(true),
+				Description:   "Determines whether or not this authentication server is enabled",
+				PlanModifiers: []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
 			},
 			"connection_method": schema.StringAttribute{
 				Optional:      true,
@@ -177,10 +181,11 @@ func (r *authServerResource) Read(ctx context.Context, req resource.ReadRequest,
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-// Update only ever runs for a change to `enabled`, since every other
-// attribute is RequiresReplace - but unlike the old provider (whose
-// Update handler was a complete no-op that silently never pushed `enabled`
-// changes to Nagios), this actually calls the API.
+// Update is unreachable in practice: every attribute in the schema above is
+// RequiresReplace, so the framework always plans a destroy+recreate instead
+// of calling this. Kept implemented (rather than erroring outright) as a
+// defensive fallback in case that ever changes - resource.Resource requires
+// an Update method regardless.
 func (r *authServerResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan, state authServerModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
