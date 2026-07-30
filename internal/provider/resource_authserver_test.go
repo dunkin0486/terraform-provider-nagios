@@ -69,6 +69,44 @@ func TestAccAuthServerCreateAfterManualDestroy(t *testing.T) {
 	})
 }
 
+// TestAccAuthServerToggleEnabled verifies that changing `enabled` - the only
+// attribute this resource doesn't mark RequiresReplace - actually works.
+// Nagios XI's API has no PUT route for authserver at all (see #104), so
+// changing enabled must trigger a destroy+recreate, not an in-place update
+// attempt that fails with "Unknown API endpoint."
+func TestAccAuthServerToggleEnabled(t *testing.T) {
+	rName := "nagios_authserver.authserver"
+	var firstServerID, secondServerID string
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckAuthServerDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccAuthServerResourceLDAP(true, "389", "ldap.test.local", "DC=test,DC=local", "ssl"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAuthServerExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "enabled", "true"),
+					testAccCaptureAuthServerID(rName, &firstServerID),
+				),
+			},
+			{
+				Config: testAccAuthServerResourceLDAP(false, "389", "ldap.test.local", "DC=test,DC=local", "ssl"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckAuthServerExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "enabled", "false"),
+					testAccCaptureAuthServerID(rName, &secondServerID),
+				),
+			},
+		},
+	})
+
+	if firstServerID == secondServerID {
+		t.Errorf("expected authserver to be replaced when enabled changes (Nagios has no update API for authserver), but server_id stayed %q across both steps", firstServerID)
+	}
+}
+
 // testAccCaptureAuthServerID reads server_id out of state into out, for use
 // by a later step's PreConfig (which has no access to state itself).
 func testAccCaptureAuthServerID(rName string, out *string) resource.TestCheckFunc {
