@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.3.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.2.0...v2.3.0) (2026-07-31)
+
+
+### Features
+
+* add group-assignment and nested-group-membership fields ([#133](https://github.com/dunkin0486/terraform-provider-nagios/issues/133)) ([1813e51](https://github.com/dunkin0486/terraform-provider-nagios/commit/1813e5131ef08064c186e9534b47328aa8a773bf))
+
 ## [2.2.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.1.3...v2.2.0) (2026-07-30)
 
 
