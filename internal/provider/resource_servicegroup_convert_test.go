@@ -13,10 +13,12 @@ func TestServicegroupFromModel(t *testing.T) {
 	ctx := context.Background()
 
 	members, _ := types.SetValueFrom(ctx, types.StringType, []string{"web01", "HTTP"})
+	servicegroupMembers, _ := types.SetValueFrom(ctx, types.StringType, []string{"east-region"})
 	m := &servicegroupModel{
-		Name:    types.StringValue("http-checks"),
-		Alias:   types.StringValue("HTTP Checks"),
-		Members: members,
+		Name:                types.StringValue("http-checks"),
+		Alias:               types.StringValue("HTTP Checks"),
+		Members:             members,
+		ServicegroupMembers: servicegroupMembers,
 	}
 
 	sg, diags := servicegroupFromModel(ctx, m)
@@ -30,15 +32,19 @@ func TestServicegroupFromModel(t *testing.T) {
 	if len(sg.Members) != 2 {
 		t.Errorf("Members = %#v, want 2 elements", sg.Members)
 	}
+	if len(sg.ServicegroupMembers) != 1 || sg.ServicegroupMembers[0] != "east-region" {
+		t.Errorf("ServicegroupMembers = %#v, want [east-region]", sg.ServicegroupMembers)
+	}
 }
 
 func TestModelFromServicegroup(t *testing.T) {
 	ctx := context.Background()
 
 	sg := &client.Servicegroup{
-		Name:    "http-checks",
-		Alias:   "HTTP Checks",
-		Members: []string{"web01", "HTTP"},
+		Name:                "http-checks",
+		Alias:               "HTTP Checks",
+		Members:             []string{"web01", "HTTP"},
+		ServicegroupMembers: []string{"east-region"},
 	}
 
 	var m servicegroupModel
@@ -58,5 +64,14 @@ func TestModelFromServicegroup(t *testing.T) {
 	}
 	if len(members) != 2 {
 		t.Errorf("Members = %#v, want 2 elements", members)
+	}
+
+	var servicegroupMembers []string
+	diags = m.ServicegroupMembers.ElementsAs(ctx, &servicegroupMembers, false)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics reading ServicegroupMembers: %v", diags)
+	}
+	if len(servicegroupMembers) != 1 || servicegroupMembers[0] != "east-region" {
+		t.Errorf("ServicegroupMembers = %#v, want [east-region]", servicegroupMembers)
 	}
 }

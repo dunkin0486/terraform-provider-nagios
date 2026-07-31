@@ -9,12 +9,13 @@ import (
 
 // Hostgroup mirrors the fields Nagios XI's hostgroup object API accepts/returns.
 type Hostgroup struct {
-	Name      string   `json:"hostgroup_name"`
-	Alias     string   `json:"alias"`
-	Members   []string `json:"members,omitempty"`
-	Notes     string   `json:"notes,omitempty"`
-	NotesURL  string   `json:"notes_url,omitempty"`
-	ActionURL string   `json:"action_url,omitempty"`
+	Name             string   `json:"hostgroup_name"`
+	Alias            string   `json:"alias"`
+	Members          []string `json:"members,omitempty"`
+	HostgroupMembers []string `json:"hostgroup_members,omitempty"`
+	Notes            string   `json:"notes,omitempty"`
+	NotesURL         string   `json:"notes_url,omitempty"`
+	ActionURL        string   `json:"action_url,omitempty"`
 }
 
 // NewHostgroup creates a hostgroup and applies the config change.

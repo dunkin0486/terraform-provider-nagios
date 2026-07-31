@@ -35,6 +35,7 @@ type serviceResource struct {
 type serviceModel struct {
 	ServiceName                types.String `tfsdk:"service_name"`
 	HostName                   types.Set    `tfsdk:"host_name"`
+	HostgroupName              types.Set    `tfsdk:"hostgroup_name"`
 	DisplayName                types.String `tfsdk:"display_name"`
 	Description                types.String `tfsdk:"description"`
 	CheckCommand               types.String `tfsdk:"check_command"`
@@ -66,6 +67,7 @@ type serviceModel struct {
 	NotificationOptions        types.Set    `tfsdk:"notification_options"`
 	NotificationsEnabled       types.Bool   `tfsdk:"notifications_enabled"`
 	ContactGroups              types.Set    `tfsdk:"contact_groups"`
+	Servicegroups              types.Set    `tfsdk:"servicegroups"`
 	Notes                      types.String `tfsdk:"notes"`
 	NotesURL                   types.String `tfsdk:"notes_url"`
 	ActionURL                  types.String `tfsdk:"action_url"`
@@ -91,6 +93,11 @@ func (r *serviceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Required:    true,
 				ElementType: types.StringType,
 				Description: "The hosts that the service should run on",
+			},
+			"hostgroup_name": schema.SetAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "A list of hostgroups whose member hosts the service should also run on, in addition to `host_name`",
 			},
 			"display_name": schema.StringAttribute{
 				Optional:    true,
@@ -226,6 +233,11 @@ func (r *serviceResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "A list of the contact groups that should be notified if the service goes down",
+			},
+			"servicegroups": schema.SetAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "A list of servicegroups this service should be a member of, assigned from the service side",
 			},
 			"notes": schema.StringAttribute{
 				Optional:    true,
@@ -406,6 +418,8 @@ func serviceFromModel(ctx context.Context, m *serviceModel) (*client.Service, di
 
 	hostNames, d := setToStrings(ctx, m.HostName)
 	diags.Append(d...)
+	hostgroupNames, d := setToStrings(ctx, m.HostgroupName)
+	diags.Append(d...)
 	contacts, d := setToStrings(ctx, m.Contacts)
 	diags.Append(d...)
 	templates, d := setToStrings(ctx, m.Templates)
@@ -415,6 +429,8 @@ func serviceFromModel(ctx context.Context, m *serviceModel) (*client.Service, di
 	notificationOptions, d := setToStrings(ctx, m.NotificationOptions)
 	diags.Append(d...)
 	contactGroups, d := setToStrings(ctx, m.ContactGroups)
+	diags.Append(d...)
+	servicegroups, d := setToStrings(ctx, m.Servicegroups)
 	diags.Append(d...)
 	freeVariables, d := mapToStrings(ctx, m.FreeVariables)
 	diags.Append(d...)
@@ -426,6 +442,7 @@ func serviceFromModel(ctx context.Context, m *serviceModel) (*client.Service, di
 	return &client.Service{
 		ServiceName:                m.ServiceName.ValueString(),
 		HostName:                   hostNames,
+		HostgroupName:              hostgroupNames,
 		DisplayName:                m.DisplayName.ValueString(),
 		Description:                m.Description.ValueString(),
 		CheckCommand:               m.CheckCommand.ValueString(),
@@ -457,6 +474,7 @@ func serviceFromModel(ctx context.Context, m *serviceModel) (*client.Service, di
 		NotificationOptions:        notificationOptions,
 		NotificationsEnabled:       optionalBoolToNagios(m.NotificationsEnabled),
 		ContactGroups:              contactGroups,
+		Servicegroups:              servicegroups,
 		Notes:                      m.Notes.ValueString(),
 		NotesURL:                   m.NotesURL.ValueString(),
 		ActionURL:                  m.ActionURL.ValueString(),
@@ -475,6 +493,10 @@ func modelFromService(ctx context.Context, m *serviceModel, s *client.Service) d
 	hostNames, d := stringsToSet(ctx, s.HostName)
 	diags.Append(d...)
 	m.HostName = hostNames
+
+	hostgroupNames, d := stringsToSet(ctx, s.HostgroupName)
+	diags.Append(d...)
+	m.HostgroupName = hostgroupNames
 
 	m.DisplayName = stringOrNull(s.DisplayName)
 	m.Description = types.StringValue(s.Description)
@@ -525,6 +547,10 @@ func modelFromService(ctx context.Context, m *serviceModel, s *client.Service) d
 	contactGroups, d := stringsToSet(ctx, s.ContactGroups)
 	diags.Append(d...)
 	m.ContactGroups = contactGroups
+
+	servicegroups, d := stringsToSet(ctx, s.Servicegroups)
+	diags.Append(d...)
+	m.Servicegroups = servicegroups
 
 	m.Notes = stringOrNull(s.Notes)
 	m.NotesURL = stringOrNull(s.NotesURL)

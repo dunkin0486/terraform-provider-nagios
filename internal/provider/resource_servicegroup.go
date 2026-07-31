@@ -30,12 +30,13 @@ type servicegroupResource struct {
 }
 
 type servicegroupModel struct {
-	Name      types.String `tfsdk:"name"`
-	Alias     types.String `tfsdk:"alias"`
-	Members   types.Set    `tfsdk:"members"`
-	Notes     types.String `tfsdk:"notes"`
-	NotesURL  types.String `tfsdk:"notes_url"`
-	ActionURL types.String `tfsdk:"action_url"`
+	Name                types.String `tfsdk:"name"`
+	Alias               types.String `tfsdk:"alias"`
+	Members             types.Set    `tfsdk:"members"`
+	ServicegroupMembers types.Set    `tfsdk:"servicegroup_members"`
+	Notes               types.String `tfsdk:"notes"`
+	NotesURL            types.String `tfsdk:"notes_url"`
+	ActionURL           types.String `tfsdk:"action_url"`
 }
 
 func (r *servicegroupResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -59,6 +60,11 @@ func (r *servicegroupResource) Schema(ctx context.Context, req resource.SchemaRe
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "A list of services and/or service groups that should be members of the service group. The members must be valid services and service groups within Nagios and must be active",
+			},
+			"servicegroup_members": schema.SetAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "A list of other servicegroups whose member services should be included in this group (nested servicegroups)",
 			},
 			"notes": schema.StringAttribute{
 				Optional:    true,
@@ -205,18 +211,25 @@ func (r *servicegroupResource) ImportState(ctx context.Context, req resource.Imp
 }
 
 func servicegroupFromModel(ctx context.Context, m *servicegroupModel) (*client.Servicegroup, diag.Diagnostics) {
-	members, diags := setToStrings(ctx, m.Members)
+	var diags diag.Diagnostics
+
+	members, d := setToStrings(ctx, m.Members)
+	diags.Append(d...)
+	servicegroupMembers, d := setToStrings(ctx, m.ServicegroupMembers)
+	diags.Append(d...)
+
 	if diags.HasError() {
 		return nil, diags
 	}
 
 	return &client.Servicegroup{
-		Name:      m.Name.ValueString(),
-		Alias:     m.Alias.ValueString(),
-		Members:   members,
-		Notes:     m.Notes.ValueString(),
-		NotesURL:  m.NotesURL.ValueString(),
-		ActionURL: m.ActionURL.ValueString(),
+		Name:                m.Name.ValueString(),
+		Alias:               m.Alias.ValueString(),
+		Members:             members,
+		ServicegroupMembers: servicegroupMembers,
+		Notes:               m.Notes.ValueString(),
+		NotesURL:            m.NotesURL.ValueString(),
+		ActionURL:           m.ActionURL.ValueString(),
 	}, diags
 }
 
@@ -229,6 +242,10 @@ func modelFromServicegroup(ctx context.Context, m *servicegroupModel, sg *client
 	members, d := stringsToSet(ctx, sg.Members)
 	diags.Append(d...)
 	m.Members = members
+
+	servicegroupMembers, d := stringsToSet(ctx, sg.ServicegroupMembers)
+	diags.Append(d...)
+	m.ServicegroupMembers = servicegroupMembers
 
 	m.Notes = stringOrNull(sg.Notes)
 	m.NotesURL = stringOrNull(sg.NotesURL)

@@ -10,12 +10,13 @@ import (
 // Servicegroup mirrors the fields Nagios XI's servicegroup object API
 // accepts/returns.
 type Servicegroup struct {
-	Name      string   `json:"servicegroup_name,omitempty"`
-	Alias     string   `json:"alias,omitempty"`
-	Members   []string `json:"members,omitempty"`
-	Notes     string   `json:"notes,omitempty"`
-	NotesURL  string   `json:"notes_url,omitempty"`
-	ActionURL string   `json:"action_url,omitempty"`
+	Name                string   `json:"servicegroup_name,omitempty"`
+	Alias               string   `json:"alias,omitempty"`
+	Members             []string `json:"members,omitempty"`
+	ServicegroupMembers []string `json:"servicegroup_members,omitempty"`
+	Notes               string   `json:"notes,omitempty"`
+	NotesURL            string   `json:"notes_url,omitempty"`
+	ActionURL           string   `json:"action_url,omitempty"`
 }
 
 // NewServicegroup creates a servicegroup and applies the config change.

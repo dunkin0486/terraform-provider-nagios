@@ -48,6 +48,7 @@ func (d *hostDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 			"check_command":                schema.StringAttribute{Computed: true},
 			"contact_groups":               schema.SetAttribute{Computed: true, ElementType: types.StringType},
 			"parents":                      schema.SetAttribute{Computed: true, ElementType: types.StringType},
+			"hostgroups":                   schema.SetAttribute{Computed: true, ElementType: types.StringType},
 			"notes":                        schema.StringAttribute{Computed: true},
 			"notes_url":                    schema.StringAttribute{Computed: true},
 			"action_url":                   schema.StringAttribute{Computed: true},

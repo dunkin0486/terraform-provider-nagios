@@ -31,6 +31,7 @@ resource "nagios_hostgroup" "example" {
 ### Optional
 
 - `action_url` (String) URL to a third-party documentation repository containing actions to take in the event the hostgroup goes down
+- `hostgroup_members` (Set of String) A list of other hostgroups whose member hosts should be included in this group (nested hostgroups)
 - `members` (Set of String) List of hosts to be members of this hostgroup
 - `notes` (String) Notes about the hostgroup that may assist with troubleshooting
 - `notes_url` (String) URL to a third-party documentation repository containing more information about the hostgroup

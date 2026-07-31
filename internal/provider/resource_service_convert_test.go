@@ -13,15 +13,18 @@ func TestServiceFromModel_FullyPopulated(t *testing.T) {
 	ctx := context.Background()
 
 	hostName, _ := types.SetValueFrom(ctx, types.StringType, []string{"web01", "web02"})
+	hostgroupName, _ := types.SetValueFrom(ctx, types.StringType, []string{"web-servers"})
 	contacts, _ := types.SetValueFrom(ctx, types.StringType, []string{"nagiosadmin"})
 	templates, _ := types.SetValueFrom(ctx, types.StringType, []string{"generic-service"})
 	contactGroups, _ := types.SetValueFrom(ctx, types.StringType, []string{"admins"})
+	servicegroups, _ := types.SetValueFrom(ctx, types.StringType, []string{"http-checks"})
 	notificationOptions, _ := types.SetValueFrom(ctx, types.StringType, []string{"w", "c"})
 	freeVars, _ := types.MapValueFrom(ctx, types.StringType, map[string]string{"_TIER": "web"})
 
 	m := &serviceModel{
 		ServiceName:          types.StringValue("web01-http"),
 		HostName:             hostName,
+		HostgroupName:        hostgroupName,
 		Description:          types.StringValue("HTTP"),
 		CheckCommand:         types.StringValue("check_http"),
 		MaxCheckAttempts:     types.StringValue("3"),
@@ -33,6 +36,7 @@ func TestServiceFromModel_FullyPopulated(t *testing.T) {
 		Contacts:             contacts,
 		Templates:            templates,
 		ContactGroups:        contactGroups,
+		Servicegroups:        servicegroups,
 		NotificationOptions:  notificationOptions,
 		FreeVariables:        freeVars,
 	}
@@ -48,6 +52,9 @@ func TestServiceFromModel_FullyPopulated(t *testing.T) {
 	if len(s.HostName) != 2 {
 		t.Errorf("HostName = %#v, want 2 elements", s.HostName)
 	}
+	if len(s.HostgroupName) != 1 || s.HostgroupName[0] != "web-servers" {
+		t.Errorf("HostgroupName = %#v, want [web-servers]", s.HostgroupName)
+	}
 	if s.CheckCommand != "check_http" {
 		t.Errorf("CheckCommand = %q, want check_http", s.CheckCommand)
 	}
@@ -56,6 +63,9 @@ func TestServiceFromModel_FullyPopulated(t *testing.T) {
 	}
 	if len(s.ContactGroups) != 1 || s.ContactGroups[0] != "admins" {
 		t.Errorf("ContactGroups = %#v, want [admins]", s.ContactGroups)
+	}
+	if len(s.Servicegroups) != 1 || s.Servicegroups[0] != "http-checks" {
+		t.Errorf("Servicegroups = %#v, want [http-checks]", s.Servicegroups)
 	}
 	if len(s.NotificationOptions) != 2 {
 		t.Errorf("NotificationOptions = %#v, want 2 elements", s.NotificationOptions)
@@ -267,6 +277,7 @@ func TestModelFromService_RoundTrip(t *testing.T) {
 	s := &client.Service{
 		ServiceName:          "web01-http",
 		HostName:             []string{"web01"},
+		HostgroupName:        []string{"web-servers"},
 		Description:          "HTTP",
 		CheckCommand:         "check_http",
 		MaxCheckAttempts:     "3",
@@ -275,6 +286,7 @@ func TestModelFromService_RoundTrip(t *testing.T) {
 		CheckPeriod:          "24x7",
 		NotificationInterval: "30",
 		NotificationPeriod:   "24x7",
+		Servicegroups:        []string{"http-checks"},
 		FreeVariables:        map[string]string{"_TIER": "web"},
 	}
 
@@ -286,6 +298,24 @@ func TestModelFromService_RoundTrip(t *testing.T) {
 
 	if m.ServiceName.ValueString() != "web01-http" {
 		t.Errorf("ServiceName = %q, want web01-http", m.ServiceName.ValueString())
+	}
+
+	var hostgroupName []string
+	diags = m.HostgroupName.ElementsAs(ctx, &hostgroupName, false)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics reading HostgroupName: %v", diags)
+	}
+	if len(hostgroupName) != 1 || hostgroupName[0] != "web-servers" {
+		t.Errorf("HostgroupName = %#v, want [web-servers]", hostgroupName)
+	}
+
+	var servicegroups []string
+	diags = m.Servicegroups.ElementsAs(ctx, &servicegroups, false)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics reading Servicegroups: %v", diags)
+	}
+	if len(servicegroups) != 1 || servicegroups[0] != "http-checks" {
+		t.Errorf("Servicegroups = %#v, want [http-checks]", servicegroups)
 	}
 
 	var freeVars map[string]string

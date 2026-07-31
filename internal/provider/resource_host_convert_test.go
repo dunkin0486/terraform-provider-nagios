@@ -16,6 +16,7 @@ func TestHostFromModel_FullyPopulated(t *testing.T) {
 	templates, _ := types.SetValueFrom(ctx, types.StringType, []string{"generic-host"})
 	contactGroups, _ := types.SetValueFrom(ctx, types.StringType, []string{"admins"})
 	parents, _ := types.SetValueFrom(ctx, types.StringType, []string{"router1"})
+	hostgroups, _ := types.SetValueFrom(ctx, types.StringType, []string{"web-servers"})
 	flapOptions, _ := types.SetValueFrom(ctx, types.StringType, []string{"o", "d"})
 	freeVars, _ := types.MapValueFrom(ctx, types.StringType, map[string]string{"_ENV": "prod"})
 
@@ -33,6 +34,7 @@ func TestHostFromModel_FullyPopulated(t *testing.T) {
 		CheckCommand:         types.StringValue("check-host-alive"),
 		ContactGroups:        contactGroups,
 		Parents:              parents,
+		Hostgroups:           hostgroups,
 		Notes:                types.StringValue("note"),
 		NotesURL:             types.StringValue("https://example.com/notes"),
 		ActionURL:            types.StringValue("https://example.com/action"),
@@ -76,6 +78,9 @@ func TestHostFromModel_FullyPopulated(t *testing.T) {
 	}
 	if len(h.Parents) != 1 || h.Parents[0] != "router1" {
 		t.Errorf("Parents = %#v, want [router1]", h.Parents)
+	}
+	if len(h.Hostgroups) != 1 || h.Hostgroups[0] != "web-servers" {
+		t.Errorf("Hostgroups = %#v, want [web-servers]", h.Hostgroups)
 	}
 	if len(h.FlapDetectionOptions) != 2 {
 		t.Errorf("FlapDetectionOptions = %#v, want 2 elements", h.FlapDetectionOptions)
@@ -286,6 +291,7 @@ func TestModelFromHost_RoundTrip(t *testing.T) {
 		NotificationPeriod:   "24x7",
 		Contacts:             []string{"nagiosadmin"},
 		Parents:              []string{"router1"},
+		Hostgroups:           []string{"web-servers"},
 		FreeVariables:        map[string]string{"_ENV": "prod"},
 	}
 
@@ -306,6 +312,15 @@ func TestModelFromHost_RoundTrip(t *testing.T) {
 	}
 	if len(parents) != 1 || parents[0] != "router1" {
 		t.Errorf("Parents = %#v, want [router1]", parents)
+	}
+
+	var hostgroups []string
+	diags = m.Hostgroups.ElementsAs(ctx, &hostgroups, false)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics reading Hostgroups: %v", diags)
+	}
+	if len(hostgroups) != 1 || hostgroups[0] != "web-servers" {
+		t.Errorf("Hostgroups = %#v, want [web-servers]", hostgroups)
 	}
 
 	var freeVars map[string]string

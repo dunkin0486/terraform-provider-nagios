@@ -30,12 +30,13 @@ type hostgroupResource struct {
 }
 
 type hostgroupModel struct {
-	Name      types.String `tfsdk:"name"`
-	Alias     types.String `tfsdk:"alias"`
-	Members   types.Set    `tfsdk:"members"`
-	Notes     types.String `tfsdk:"notes"`
-	NotesURL  types.String `tfsdk:"notes_url"`
-	ActionURL types.String `tfsdk:"action_url"`
+	Name             types.String `tfsdk:"name"`
+	Alias            types.String `tfsdk:"alias"`
+	Members          types.Set    `tfsdk:"members"`
+	HostgroupMembers types.Set    `tfsdk:"hostgroup_members"`
+	Notes            types.String `tfsdk:"notes"`
+	NotesURL         types.String `tfsdk:"notes_url"`
+	ActionURL        types.String `tfsdk:"action_url"`
 }
 
 func (r *hostgroupResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -60,6 +61,11 @@ func (r *hostgroupResource) Schema(ctx context.Context, req resource.SchemaReque
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "List of hosts to be members of this hostgroup",
+			},
+			"hostgroup_members": schema.SetAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "A list of other hostgroups whose member hosts should be included in this group (nested hostgroups)",
 			},
 			"notes": schema.StringAttribute{
 				Optional:    true,
@@ -206,18 +212,25 @@ func (r *hostgroupResource) ImportState(ctx context.Context, req resource.Import
 }
 
 func hostgroupFromModel(ctx context.Context, m *hostgroupModel) (*client.Hostgroup, diag.Diagnostics) {
-	members, diags := setToStrings(ctx, m.Members)
+	var diags diag.Diagnostics
+
+	members, d := setToStrings(ctx, m.Members)
+	diags.Append(d...)
+	hostgroupMembers, d := setToStrings(ctx, m.HostgroupMembers)
+	diags.Append(d...)
+
 	if diags.HasError() {
 		return nil, diags
 	}
 
 	return &client.Hostgroup{
-		Name:      m.Name.ValueString(),
-		Alias:     m.Alias.ValueString(),
-		Members:   members,
-		Notes:     m.Notes.ValueString(),
-		NotesURL:  m.NotesURL.ValueString(),
-		ActionURL: m.ActionURL.ValueString(),
+		Name:             m.Name.ValueString(),
+		Alias:            m.Alias.ValueString(),
+		Members:          members,
+		HostgroupMembers: hostgroupMembers,
+		Notes:            m.Notes.ValueString(),
+		NotesURL:         m.NotesURL.ValueString(),
+		ActionURL:        m.ActionURL.ValueString(),
 	}, diags
 }
 
@@ -230,6 +243,10 @@ func modelFromHostgroup(ctx context.Context, m *hostgroupModel, hg *client.Hostg
 	members, d := stringsToSet(ctx, hg.Members)
 	diags.Append(d...)
 	m.Members = members
+
+	hostgroupMembers, d := stringsToSet(ctx, hg.HostgroupMembers)
+	diags.Append(d...)
+	m.HostgroupMembers = hostgroupMembers
 
 	m.Notes = stringOrNull(hg.Notes)
 	m.NotesURL = stringOrNull(hg.NotesURL)

@@ -51,6 +51,7 @@ output "web01_address" {
 - `free_variables` (Map of String)
 - `freshness_threshold` (String)
 - `high_flap_threshold` (String)
+- `hostgroups` (Set of String)
 - `icon_image` (String)
 - `icon_image_alt` (String)
 - `initial_state` (String)

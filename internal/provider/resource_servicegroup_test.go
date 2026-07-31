@@ -90,6 +90,45 @@ func TestAccServicegroupUpdateName(t *testing.T) {
 	})
 }
 
+func TestAccServicegroupNestedMembers(t *testing.T) {
+	innerName := "tf_" + acctest.RandString(10)
+	outerName := "tf_" + acctest.RandString(10)
+	rOuterName := "nagios_servicegroup.outer"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckServicegroupDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccServicegroupResourceNested(innerName, outerName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckServicegroupExists(t, rOuterName),
+					resource.TestCheckResourceAttr(rOuterName, "servicegroup_members.#", "1"),
+					resource.TestCheckTypeSetElemAttr(rOuterName, "servicegroup_members.*", innerName),
+				),
+			},
+		},
+	})
+}
+
+func testAccServicegroupResourceNested(innerName, outerName string) string {
+	return fmt.Sprintf(`
+resource "nagios_servicegroup" "inner" {
+	name  = %[1]q
+	alias = %[1]q
+}
+
+resource "nagios_servicegroup" "outer" {
+	name                 = %[2]q
+	alias                = %[2]q
+	servicegroup_members = [%[1]q]
+
+	depends_on = [nagios_servicegroup.inner]
+}
+`, innerName, outerName)
+}
+
 func testAccServicegroupResourceBasic(name, alias string) string {
 	return fmt.Sprintf(`
 resource "nagios_servicegroup" "servicegroup" {
