@@ -1,0 +1,52 @@
+name: nagios-xi-version-check
+
+on:
+  schedule:
+    # Weekly, not daily - Nagios XI releases are infrequent (see #127).
+    - cron: '0 13 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the Nagios XI changelog for the latest version
+        id: check
+        run: python3 .github/scripts/check-nagios-xi-version.py
+
+      # State lives in issue history, not a tracked file in the repo: main
+      # requires an approving review before merge (see release-please.yml),
+      # so a workflow-authored commit straight to main isn't an option here.
+      # Instead, "has this prefix already been reported" is answered by
+      # searching prior nagios-xi-release issues for an exact title match -
+      # idempotent, self-documenting, and needs no write access to the repo.
+      - name: Check for an existing issue for this version
+        id: dedupe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREFIX: ${{ steps.check.outputs.prefix }}
+        run: |
+          gh issue list --label nagios-xi-release --state all --limit 200 --json title > /tmp/nagios-xi-issues.json
+          existing=$(jq --arg t "Nagios XI ${PREFIX} released" '[.[] | select(.title == $t)] | length' /tmp/nagios-xi-issues.json)
+          echo "exists=$existing" >> "$GITHUB_OUTPUT"
+
+      - name: Open tracking issue
+        if: steps.dedupe.outputs.exists == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.version }}
+          PREFIX: ${{ steps.check.outputs.prefix }}
+          DATE: ${{ steps.check.outputs.date }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+          DETAIL_URL: ${{ steps.check.outputs.detail_url }}
+        run: |
+          gh issue create \
+            --title "Nagios XI ${PREFIX} released" \
+            --label nagios-xi-release \
+            --body "$(printf 'Nagios XI **%s** was published on %s.\n\n> %s\n\nFull changelog entry: %s\n\nThis is an automated notification (see #127) - it does not mean provider changes are needed, just that a new `%s` release exists and may be worth a look.\n' "$VERSION" "$DATE" "$SUMMARY" "$DETAIL_URL" "$PREFIX")"
