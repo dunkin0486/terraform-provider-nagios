@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.5.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.4.0...v2.5.0) (2026-07-31)
+
+
+### Features
+
+* add data sources for contact, contactgroup, servicegroup, authserver ([#142](https://github.com/dunkin0486/terraform-provider-nagios/issues/142)) ([823f775](https://github.com/dunkin0486/terraform-provider-nagios/commit/823f775775454cac71f84beb233c6bda8cb1c4d0))
+
 ## [2.4.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.3.0...v2.4.0) (2026-07-31)
 
 
