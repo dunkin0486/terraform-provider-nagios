@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.4.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.3.0...v2.4.0) (2026-07-31)
+
+
+### Features
+
+* add nagios-field skill for the add-a-field TDD workflow ([#140](https://github.com/dunkin0486/terraform-provider-nagios/issues/140)) ([68e3f81](https://github.com/dunkin0486/terraform-provider-nagios/commit/68e3f81781398dfcba67481db8570f9154fbc0d7)), closes [#135](https://github.com/dunkin0486/terraform-provider-nagios/issues/135)
+
 ## [2.3.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.2.0...v2.3.0) (2026-07-31)
 
 
