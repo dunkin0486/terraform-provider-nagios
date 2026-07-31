@@ -123,19 +123,19 @@ resource "nagios_hostgroup" "group" {
 }
 
 resource "nagios_service" "service" {
-	service_name           = %[2]q
-	host_name              = ["localhost"]
-	hostgroup_name          = [%[1]q]
-	description             = %[3]q
-	check_command            = "check_http"
-	max_check_attempts       = "2"
-	check_interval            = "5"
-	retry_interval             = "5"
-	check_period                = "24x7"
-	notification_interval       = "10"
-	notification_period          = "24x7"
-	contacts                     = ["nagiosadmin"]
-	templates                    = ["generic-service"]
+	service_name          = %[2]q
+	host_name             = ["localhost"]
+	hostgroup_name        = [%[1]q]
+	description           = %[3]q
+	check_command         = "check_http"
+	max_check_attempts    = "2"
+	check_interval        = "5"
+	retry_interval        = "5"
+	check_period          = "24x7"
+	notification_interval = "10"
+	notification_period   = "24x7"
+	contacts              = ["nagiosadmin"]
+	templates             = ["generic-service"]
 
 	depends_on = [nagios_hostgroup.group]
 }
@@ -173,19 +173,19 @@ resource "nagios_servicegroup" "group" {
 }
 
 resource "nagios_service" "service" {
-	service_name           = %[2]q
-	host_name              = ["localhost"]
-	servicegroups           = [%[1]q]
-	description             = %[3]q
-	check_command            = "check_http"
-	max_check_attempts       = "2"
-	check_interval            = "5"
-	retry_interval             = "5"
-	check_period                = "24x7"
-	notification_interval       = "10"
-	notification_period          = "24x7"
-	contacts                     = ["nagiosadmin"]
-	templates                    = ["generic-service"]
+	service_name          = %[2]q
+	host_name             = ["localhost"]
+	servicegroups         = [%[1]q]
+	description           = %[3]q
+	check_command         = "check_http"
+	max_check_attempts    = "2"
+	check_interval        = "5"
+	retry_interval        = "5"
+	check_period          = "24x7"
+	notification_interval = "10"
+	notification_period   = "24x7"
+	contacts              = ["nagiosadmin"]
+	templates             = ["generic-service"]
 
 	depends_on = [nagios_servicegroup.group]
 }

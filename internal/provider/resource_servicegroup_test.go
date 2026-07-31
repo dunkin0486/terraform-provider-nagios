@@ -120,9 +120,9 @@ resource "nagios_servicegroup" "inner" {
 }
 
 resource "nagios_servicegroup" "outer" {
-	name                  = %[2]q
-	alias                 = %[2]q
-	servicegroup_members   = [%[1]q]
+	name                 = %[2]q
+	alias                = %[2]q
+	servicegroup_members = [%[1]q]
 
 	depends_on = [nagios_servicegroup.inner]
 }

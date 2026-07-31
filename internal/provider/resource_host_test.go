@@ -220,12 +220,12 @@ resource "nagios_host" "host" {
 	host_name              = %[3]q
 	address                = "127.0.0.1"
 	max_check_attempts     = "5"
-	check_period            = "24x7"
-	notification_interval   = "10"
-	notification_period     = "24x7"
-	contacts                = ["nagiosadmin"]
-	templates                = ["generic-host"]
-	hostgroups               = [%[4]q]
+	check_period           = "24x7"
+	notification_interval  = "10"
+	notification_period    = "24x7"
+	contacts               = ["nagiosadmin"]
+	templates              = ["generic-host"]
+	hostgroups             = [%[4]q]
 
 	depends_on = [nagios_hostgroup.group1, nagios_hostgroup.group2]
 }

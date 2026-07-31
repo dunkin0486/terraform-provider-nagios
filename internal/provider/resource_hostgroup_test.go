@@ -135,7 +135,7 @@ resource "nagios_hostgroup" "inner" {
 resource "nagios_hostgroup" "outer" {
 	name              = %[2]q
 	alias             = %[2]q
-	hostgroup_members  = [%[1]q]
+	hostgroup_members = [%[1]q]
 
 	depends_on = [nagios_hostgroup.inner]
 }
