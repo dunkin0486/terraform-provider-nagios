@@ -39,7 +39,7 @@ jobs:
       - run: go build ./...
       - run: go test -v -coverprofile=coverage.out -covermode=atomic ./internal/...
       - run: terraform fmt -check -recursive examples/
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           files: coverage.out
           flags: unit
