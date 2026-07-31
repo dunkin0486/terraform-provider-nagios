@@ -13,13 +13,15 @@ func TestHostgroupFromModel(t *testing.T) {
 	ctx := context.Background()
 
 	members, _ := types.SetValueFrom(ctx, types.StringType, []string{"web01", "web02"})
+	hostgroupMembers, _ := types.SetValueFrom(ctx, types.StringType, []string{"east-region"})
 	m := &hostgroupModel{
-		Name:      types.StringValue("web-servers"),
-		Alias:     types.StringValue("Web Servers"),
-		Members:   members,
-		Notes:     types.StringValue("note"),
-		NotesURL:  types.StringValue("https://example.com/notes"),
-		ActionURL: types.StringValue("https://example.com/action"),
+		Name:             types.StringValue("web-servers"),
+		Alias:            types.StringValue("Web Servers"),
+		Members:          members,
+		HostgroupMembers: hostgroupMembers,
+		Notes:            types.StringValue("note"),
+		NotesURL:         types.StringValue("https://example.com/notes"),
+		ActionURL:        types.StringValue("https://example.com/action"),
 	}
 
 	hg, diags := hostgroupFromModel(ctx, m)
@@ -33,6 +35,9 @@ func TestHostgroupFromModel(t *testing.T) {
 	if len(hg.Members) != 2 {
 		t.Errorf("Members = %#v, want 2 elements", hg.Members)
 	}
+	if len(hg.HostgroupMembers) != 1 || hg.HostgroupMembers[0] != "east-region" {
+		t.Errorf("HostgroupMembers = %#v, want [east-region]", hg.HostgroupMembers)
+	}
 	if hg.Notes != "note" {
 		t.Errorf("Notes = %q, want note", hg.Notes)
 	}
@@ -42,9 +47,10 @@ func TestModelFromHostgroup(t *testing.T) {
 	ctx := context.Background()
 
 	hg := &client.Hostgroup{
-		Name:    "web-servers",
-		Alias:   "Web Servers",
-		Members: []string{"web01"},
+		Name:             "web-servers",
+		Alias:            "Web Servers",
+		Members:          []string{"web01"},
+		HostgroupMembers: []string{"east-region"},
 	}
 
 	var m hostgroupModel
@@ -67,5 +73,14 @@ func TestModelFromHostgroup(t *testing.T) {
 	}
 	if len(members) != 1 || members[0] != "web01" {
 		t.Errorf("Members = %#v, want [web01]", members)
+	}
+
+	var hostgroupMembers []string
+	diags = m.HostgroupMembers.ElementsAs(ctx, &hostgroupMembers, false)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics reading HostgroupMembers: %v", diags)
+	}
+	if len(hostgroupMembers) != 1 || hostgroupMembers[0] != "east-region" {
+		t.Errorf("HostgroupMembers = %#v, want [east-region]", hostgroupMembers)
 	}
 }

@@ -129,7 +129,8 @@ func (c *Client) UpdateService(ctx context.Context, s *Service, oldServiceName, 
 // comment). hostNamesCSV is the full set of hosts the service applies to,
 // comma-joined into a single value, matching what the old provider sent
 // (Nagios accepts this as one opaque host_name parameter value, not a
-// per-host delete loop).
+// per-host delete loop). HostgroupName/Servicegroups are membership-only
+// fields and never participate in this key.
 func (c *Client) DeleteService(ctx context.Context, hostNamesCSV, description string) error {
 	nagiosURL, err := buildURL(c.baseURL, c.token, "service", http.MethodDelete, "host_name", hostNamesCSV, "", description)
 	if err != nil {
