@@ -119,5 +119,9 @@ func (p *nagiosProvider) DataSources(ctx context.Context) []func() datasource.Da
 		NewHostDataSource,
 		NewHostgroupDataSource,
 		NewServiceDataSource,
+		NewContactDataSource,
+		NewContactgroupDataSource,
+		NewServicegroupDataSource,
+		NewAuthServerDataSource,
 	}
 }
