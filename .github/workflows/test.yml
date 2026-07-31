@@ -8,9 +8,37 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  # lint/test are required status checks on main. A trigger-level paths
+  # filter would make GitHub wait forever on PRs that never schedule these
+  # jobs at all - instead this job always runs (cheap) and lint/test key off
+  # its output with a job-level `if:`, which reports "skipped" rather than
+  # never reporting - and GitHub treats a skipped required check as passing.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      provider: ${{ steps.filter.outputs.provider }}
+    steps:
+      # No checkout: passing `token` lets the action fetch the changed-file
+      # list from the GitHub API instead of a local git diff, so this job
+      # doesn't depend on checkout fetch-depth.
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          token: ${{ github.token }}
+          filters: |
+            provider:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - 'examples/**'
+              - '.github/workflows/test.yml'
+
   lint:
+    needs: changes
+    if: needs.changes.outputs.provider == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -27,6 +55,8 @@ jobs:
           repo-checkout: false
 
   test:
+    needs: changes
+    if: needs.changes.outputs.provider == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
