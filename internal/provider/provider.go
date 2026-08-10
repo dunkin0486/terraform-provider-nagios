@@ -111,6 +111,7 @@ func (p *nagiosProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewServicegroupResource,
 		NewAuthServerResource,
 		NewTimeperiodResource,
+		NewCommandResource,
 	}
 }
 
