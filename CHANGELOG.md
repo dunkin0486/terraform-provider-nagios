@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.6.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.5.0...v2.6.0) (2026-08-10)
+
+
+### Features
+
+* add nagios_command resource ([#151](https://github.com/dunkin0486/terraform-provider-nagios/issues/151)) ([7a56e42](https://github.com/dunkin0486/terraform-provider-nagios/commit/7a56e42edbf9040096c9ad3e1272fc4c1bf97a74)), closes [#146](https://github.com/dunkin0486/terraform-provider-nagios/issues/146)
+
 ## [2.5.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.4.0...v2.5.0) (2026-07-31)
 
 
