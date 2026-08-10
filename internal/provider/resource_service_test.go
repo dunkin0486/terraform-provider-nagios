@@ -52,7 +52,7 @@ func TestAccServiceCreateAfterManualDestroy(t *testing.T) {
 					c := testAccClient(t)
 					// DeleteService is keyed by (host_name, description), not
 					// service_name - see internal/client/service.go.
-					if err := c.DeleteService(context.Background(), "localhost", description); err != nil {
+					if err := c.DeleteService(context.Background(), []string{"localhost"}, description); err != nil {
 						t.Fatal(err)
 					}
 				},
