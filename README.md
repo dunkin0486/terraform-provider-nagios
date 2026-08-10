@@ -49,6 +49,12 @@ The API token is found in the Nagios XI web UI under Admin > API Key, or via `He
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and contribution instructions, including how to run the acceptance test suite against a local Nagios XI instance in Docker.
 
+## Reporting issues and requesting features
+
+Open a [GitHub Issue](https://github.com/dunkin0486/terraform-provider-nagios/issues/new/choose) and pick the bug report or feature request template - each prompts for the details needed to act on it (for a bug: Nagios XI version, steps to reproduce, expected vs. actual behavior). Filed issues get triaged onto the [Nagios Provider Enhancements](https://github.com/users/dunkin0486/projects/4) project board.
+
+**Do not open a public issue for a security vulnerability** - see [SECURITY.md](SECURITY.md) for private reporting instead.
+
 ## Roadmap
 
 The plan for this provider is to allow complete management of Nagios XI through code. Planned and in-progress work is tracked on the [Nagios Provider Enhancements](https://github.com/users/dunkin0486/projects/4) project board, not duplicated here.
