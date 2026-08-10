@@ -21,9 +21,18 @@ jobs:
     outputs:
       provider: ${{ steps.filter.outputs.provider }}
     steps:
-      # No checkout: passing `token` lets the action fetch the changed-file
-      # list from the GitHub API instead of a local git diff, so this job
-      # doesn't depend on checkout fetch-depth.
+      # dorny/paths-filter only uses the GitHub API (skipping the need for a
+      # checkout) for pull_request events - for push (main's post-merge
+      # commits, release-please's version-bump commits), it needs actual git
+      # history to diff against github.event.before, and fails outright
+      # without one ("fatal: not a git repository"). Confirmed this was
+      # silently failing changes -> lint/test (via `if: needs.changes...`)
+      # skipped, not run - on every push to main. fetch-depth: 0 for full
+      # history rather than a fixed shallow depth, since a push can carry
+      # more than one new commit (a merge commit, not just a single squash).
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v3
         id: filter
         with:
