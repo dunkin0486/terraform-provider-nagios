@@ -76,6 +76,7 @@ Releases are automated via [release-please](https://github.com/googleapis/releas
 
 - **Do a new git worktree for each unit of work**, rather than reusing one working directory across unrelated branches. This is what actually eliminates the stale-base problem above: each worktree tracks its own branch against a freshly-fetched base, so switching between unrelated efforts (a feature branch, a docs fix, a CI tweak) can't cross-contaminate working-tree state the way repeated `git checkout -b` in one directory can.
 - **Always fetch and fast-forward `main` before branching for new work** — `git fetch origin main && git branch -f main origin/main` (or an equivalent pull) — even if `main` was updated recently in this same session. Don't assume the local ref is current.
+- **Link new issues to the "Nagios Provider Enhancements" project on creation** — `gh issue create --project "Nagios Provider Enhancements" ...` — for new resource-type work or fix tracking, rather than filing the issue and adding it to the board as a separate step (or not at all).
 
 ## Architecture
 
