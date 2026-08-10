@@ -113,7 +113,7 @@ func (r *hostgroupResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	got, err := client.RetryUntilFound(ctx, 4, defaultCreateRetryBackoff, func() (*client.Hostgroup, error) {
+	got, err := client.RetryUntilFound(ctx, defaultCreateRetryAttempts, defaultCreateRetryBackoff, func() (*client.Hostgroup, error) {
 		return r.client.GetHostgroup(ctx, hg.Name)
 	})
 	if err != nil {

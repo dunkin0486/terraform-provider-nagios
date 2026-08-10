@@ -14,9 +14,10 @@ import (
 // name": GET keys off ServiceName alone - see GetService, which passes no
 // description filter at all - while PUT is compound-keyed off (ServiceName,
 // Description) - see UpdateService. DELETE differs again, keying off
-// (host_name, Description) instead - see DeleteService, which takes a
-// comma-joined host name list rather than ServiceName at all. None of this
-// is normalized away here; it's what the live API actually expects.
+// (host_name, Description) instead - see DeleteService, which joins the full
+// host set into a single comma-joined value rather than addressing by
+// ServiceName at all. None of this is normalized away here; it's what the
+// live API actually expects.
 type Service struct {
 	ServiceName                string   `json:"config_name"`
 	HostName                   []string `json:"host_name"`
@@ -134,12 +135,13 @@ func (c *Client) UpdateService(ctx context.Context, s *Service, oldServiceName, 
 
 // DeleteService deletes a service by (host_name, description) - Nagios's
 // DELETE endpoint is keyed differently than GET/PUT (see the Service doc
-// comment). hostNamesCSV is the full set of hosts the service applies to,
-// comma-joined into a single value, matching what the old provider sent
-// (Nagios accepts this as one opaque host_name parameter value, not a
-// per-host delete loop). HostgroupName/Servicegroups are membership-only
-// fields and never participate in this key.
-func (c *Client) DeleteService(ctx context.Context, hostNamesCSV, description string) error {
+// comment). hostNames is the full set of hosts the service applies to,
+// comma-joined into a single value via mapArrayToString, matching what the
+// old provider sent (Nagios accepts this as one opaque host_name parameter
+// value, not a per-host delete loop). HostgroupName/Servicegroups are
+// membership-only fields and never participate in this key.
+func (c *Client) DeleteService(ctx context.Context, hostNames []string, description string) error {
+	hostNamesCSV := mapArrayToString(hostNames)
 	nagiosURL, err := buildURL(c.baseURL, c.token, "service", http.MethodDelete, "host_name", hostNamesCSV, "", description)
 	if err != nil {
 		return err

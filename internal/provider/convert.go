@@ -93,3 +93,20 @@ func nagiosToOptionalBool(v string) types.Bool {
 	}
 	return types.BoolValue(v == "1")
 }
+
+// boolToNagios converts a types.Bool to Nagios's "0"/"1" string convention
+// directly, for a Required schema attribute - which, unlike the fields
+// optionalBoolToNagios handles, can never be null/unknown post-plan, so
+// there's no null/unset distinction to preserve here.
+func boolToNagios(v types.Bool) string {
+	if v.ValueBool() {
+		return "1"
+	}
+	return "0"
+}
+
+// nagiosToBool is the inverse of boolToNagios, for a Required field
+// guaranteed to be present on the API response.
+func nagiosToBool(v string) types.Bool {
+	return types.BoolValue(v == "1")
+}

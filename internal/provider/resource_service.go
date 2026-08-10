@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -404,7 +403,7 @@ func (r *serviceResource) Delete(ctx context.Context, req resource.DeleteRequest
 
 	// DeleteService is keyed by (host_name, description), not by
 	// service_name - a real Nagios API inconsistency versus Update above.
-	if err := r.client.DeleteService(ctx, strings.Join(hostNames, ","), state.Description.ValueString()); err != nil {
+	if err := r.client.DeleteService(ctx, hostNames, state.Description.ValueString()); err != nil {
 		resp.Diagnostics.AddError("Error deleting service", err.Error())
 	}
 }

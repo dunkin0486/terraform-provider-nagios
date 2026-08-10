@@ -145,7 +145,7 @@ func TestDeleteService_JoinsMultipleHostsAndEscapesSpaces(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "TOKEN")
-	if err := c.DeleteService(context.Background(), "host1,host2,host3", "CPU Load"); err != nil {
+	if err := c.DeleteService(context.Background(), []string{"host1", "host2", "host3"}, "CPU Load"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !sawApplyConfig {

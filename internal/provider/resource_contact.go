@@ -292,8 +292,8 @@ func contactFromModel(ctx context.Context, m *contactModel) (*client.Contact, di
 
 	return &client.Contact{
 		ContactName:                 m.ContactName.ValueString(),
-		HostNotificationsEnabled:    optionalBoolToNagios(m.HostNotificationsEnabled),
-		ServiceNotificationsEnabled: optionalBoolToNagios(m.ServiceNotificationsEnabled),
+		HostNotificationsEnabled:    boolToNagios(m.HostNotificationsEnabled),
+		ServiceNotificationsEnabled: boolToNagios(m.ServiceNotificationsEnabled),
 		HostNotificationPeriod:      m.HostNotificationPeriod.ValueString(),
 		ServiceNotificationPeriod:   m.ServiceNotificationPeriod.ValueString(),
 		HostNotificationOptions:     m.HostNotificationOptions.ValueString(),
@@ -318,8 +318,8 @@ func modelFromContact(ctx context.Context, m *contactModel, c *client.Contact) d
 	var diags diag.Diagnostics
 
 	m.ContactName = types.StringValue(c.ContactName)
-	m.HostNotificationsEnabled = nagiosToOptionalBool(c.HostNotificationsEnabled)
-	m.ServiceNotificationsEnabled = nagiosToOptionalBool(c.ServiceNotificationsEnabled)
+	m.HostNotificationsEnabled = nagiosToBool(c.HostNotificationsEnabled)
+	m.ServiceNotificationsEnabled = nagiosToBool(c.ServiceNotificationsEnabled)
 	m.HostNotificationPeriod = types.StringValue(c.HostNotificationPeriod)
 	m.ServiceNotificationPeriod = types.StringValue(c.ServiceNotificationPeriod)
 	m.HostNotificationOptions = types.StringValue(c.HostNotificationOptions)
