@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 )
@@ -15,6 +16,18 @@ import (
 // the field as "id" instead - so both fields are kept in sync manually
 // (ServerID <- ID after a GET, ID <- ServerID after a create) rather than
 // being a single field, matching what the live API actually does.
+//
+// One more confirmed-against-a-live-instance quirk, specific to "enabled":
+// it comes back as a JSON string ("0"/"1") once it's ever been explicitly
+// set (via create or update), but as a bare JSON number (no quotes) if it
+// was never explicitly set and Nagios applied its own server-side default.
+// This provider's own Create/Update always send it explicitly (the
+// resource's `enabled` schema attribute is Computed+Default, so
+// terraform-plugin-framework's plan already has a concrete value before
+// Create ever runs), so this only bites on an auth server that was created
+// entirely outside this provider and then imported. See
+// AuthServer.UnmarshalJSON, which normalizes both possible shapes - the same
+// pattern Timeperiod's UnmarshalJSON uses for its "use" field.
 type AuthServer struct {
 	ID                  string `json:"id"`
 	ServerID            string `json:"server_id"`
@@ -26,6 +39,38 @@ type AuthServer struct {
 	SecurityLevel       string `json:"security_level,omitempty"`
 	LDAPPort            string `json:"ldap_port,omitempty"`
 	LDAPHost            string `json:"ldap_host,omitempty"`
+}
+
+// UnmarshalJSON normalizes "enabled"'s inconsistent wire shape (see the
+// AuthServer doc comment above) into a string regardless of whether Nagios
+// sent a JSON string or a bare number. Every other field decodes via the
+// struct's own json tags as usual; only "enabled" needs special handling.
+func (a *AuthServer) UnmarshalJSON(data []byte) error {
+	type authServerAlias AuthServer
+	aux := &struct {
+		Enabled json.RawMessage `json:"enabled,omitempty"`
+		*authServerAlias
+	}{authServerAlias: (*authServerAlias)(a)}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if len(aux.Enabled) == 0 {
+		return nil
+	}
+
+	var asString string
+	if err := json.Unmarshal(aux.Enabled, &asString); err == nil {
+		a.Enabled = asString
+		return nil
+	}
+
+	var asNumber json.Number
+	if err := json.Unmarshal(aux.Enabled, &asNumber); err != nil {
+		return err
+	}
+	a.Enabled = asNumber.String()
+	return nil
 }
 
 // authServerListResponse is the envelope Nagios wraps auth server GET
@@ -80,8 +125,18 @@ func (c *Client) NewAuthServer(ctx context.Context, a *AuthServer) error {
 	if err != nil {
 		return err
 	}
+	// Reset before unmarshaling so a non-empty ServerID below is guaranteed
+	// to have come from this response, not a stale value already sitting on
+	// a - the existsErrorFor fallback in UpdateAuthServer calls this with an
+	// *AuthServer whose ServerID is already populated with the *old*
+	// server's ID, and json.Unmarshal never clears a field when the
+	// response omits its key.
+	a.ServerID = ""
 	if err := json.Unmarshal(body, a); err != nil {
 		return err
+	}
+	if a.ServerID == "" {
+		return fmt.Errorf("nagios's authserver create response reported success but omitted server_id - the auth server may have been created without this client being able to learn its ID; body: %s", body)
 	}
 	a.ID = a.ServerID
 

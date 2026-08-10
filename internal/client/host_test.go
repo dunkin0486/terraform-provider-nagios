@@ -100,6 +100,34 @@ func TestGetHost_NotFound(t *testing.T) {
 	}
 }
 
+// TestGetHost_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound guards
+// against #89 finding 3: GET requests don't route through
+// parseCommandResponse the way POST/PUT/DELETE do, so in principle an error
+// response could be indistinguishable from a genuine zero-result GET.
+// Verified against a live instance: an auth failure (bad/missing API key)
+// returns a JSON *object* ({"error":"..."}), never an empty array - and
+// json.Unmarshal into []Host already fails loudly on that shape rather than
+// silently decoding to a zero-length slice, so GetHost's len(results)==0
+// check can't confuse the two. This test pins that down as a regression
+// guard; it does not by itself confirm every conceivable Nagios
+// error/permission-scoping response is shaped this way, only the one
+// verified case.
+func TestGetHost_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"error":"Invalid API Key"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.GetHost(context.Background(), "somehost")
+	if err == nil {
+		t.Fatal("expected an error for an {\"error\":...} response body, got nil")
+	}
+	if got != nil {
+		t.Errorf("expected a nil host alongside the error, got %+v", got)
+	}
+}
+
 // TestUpdateHost_Success confirms a successful PUT addresses the *old* name
 // as a path segment (CLAUDE.md quirk 3) and still applies config.
 func TestUpdateHost_Success(t *testing.T) {
