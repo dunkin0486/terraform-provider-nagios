@@ -70,6 +70,13 @@ Docs are generated, not hand-written. Never edit `docs/*.md` directly — edit t
 
 Releases are automated via [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release-please.yml`): it parses [Conventional Commits](https://www.conventionalcommits.org/) prefixes on `main` to decide the next version and drive `CHANGELOG.md`. **PR titles/merge commits need a `fix:`/`feat:`/`feat!:` (or `BREAKING CHANGE:` footer) prefix** or they won't be picked up as release-worthy — see CONTRIBUTING.md for the full mapping. Don't hand-edit `CHANGELOG.md`; release-please owns it now.
 
+### Git workflow
+
+`main` gets merged (and released) frequently by work happening outside any one session — release-please alone lands a version-bump commit on every merge. A local `main` branch is stale the moment it's not actively re-synced, and branching off a stale `main` produces a branch that's silently missing recent history (committed files disappear from the working tree on checkout, already-merged changes look like new diffs, etc.).
+
+- **Do a new git worktree for each unit of work**, rather than reusing one working directory across unrelated branches. This is what actually eliminates the stale-base problem above: each worktree tracks its own branch against a freshly-fetched base, so switching between unrelated efforts (a feature branch, a docs fix, a CI tweak) can't cross-contaminate working-tree state the way repeated `git checkout -b` in one directory can.
+- **Always fetch and fast-forward `main` before branching for new work** — `git fetch origin main && git branch -f main origin/main` (or an equivalent pull) — even if `main` was updated recently in this same session. Don't assume the local ref is current.
+
 ## Architecture
 
 Two packages, deliberately separated by an import boundary:
