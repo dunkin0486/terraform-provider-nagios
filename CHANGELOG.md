@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.6.1](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.6.0...v2.6.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* address correctness risks flagged in PR [#87](https://github.com/dunkin0486/terraform-provider-nagios/issues/87) review ([#170](https://github.com/dunkin0486/terraform-provider-nagios/issues/170)) ([4e5f017](https://github.com/dunkin0486/terraform-provider-nagios/commit/4e5f0174575e1b672a34b7ea4ac97f28e9529960)), closes [#89](https://github.com/dunkin0486/terraform-provider-nagios/issues/89)
+
 ## [2.6.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.5.0...v2.6.0) (2026-08-10)
 
 
