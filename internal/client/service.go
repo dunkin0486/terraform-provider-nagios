@@ -9,54 +9,62 @@ import (
 
 // Service mirrors the fields Nagios XI's service object API accepts/returns.
 //
-// Nagios's service API has a real, verb-specific compound-key inconsistency:
-// GET/PUT key off (ServiceName, Description) - see GetService/UpdateService -
-// while DELETE keys off (host_name, Description) instead - see DeleteService,
-// which takes a comma-joined host name list rather than ServiceName at all.
-// This isn't normalized away here; it's what the live API actually expects.
+// Nagios's service API keys each verb differently, and it's not uniform
+// across even GET and PUT despite both nominally addressing "a service by
+// name": GET keys off ServiceName alone - see GetService, which passes no
+// description filter at all - while PUT is compound-keyed off (ServiceName,
+// Description) - see UpdateService. DELETE differs again, keying off
+// (host_name, Description) instead - see DeleteService, which takes a
+// comma-joined host name list rather than ServiceName at all. None of this
+// is normalized away here; it's what the live API actually expects.
 type Service struct {
-	ServiceName                string            `json:"config_name"`
-	HostName                   []string          `json:"host_name"`
-	HostgroupName              []string          `json:"hostgroup_name,omitempty"`
-	DisplayName                string            `json:"display_name,omitempty"`
-	Description                string            `json:"service_description"`
-	CheckCommand               string            `json:"check_command"`
-	MaxCheckAttempts           string            `json:"max_check_attempts"`
-	CheckInterval              string            `json:"check_interval"`
-	RetryInterval              string            `json:"retry_interval"`
-	CheckPeriod                string            `json:"check_period"`
-	NotificationInterval       string            `json:"notification_interval"`
-	NotificationPeriod         string            `json:"notification_period"`
-	Contacts                   []string          `json:"contacts"`
-	Templates                  []string          `json:"use,omitempty"`
-	IsVolatile                 string            `json:"is_volatile,omitempty"`
-	InitialState               string            `json:"initial_state,omitempty"`
-	ActiveChecksEnabled        string            `json:"active_checks_enabled,omitempty"`
-	PassiveChecksEnabled       string            `json:"passive_checks_enabled,omitempty"`
-	ObsessOverService          string            `json:"obsess_over_service,omitempty"`
-	CheckFreshness             string            `json:"check_freshness,omitempty"`
-	FreshnessThreshold         string            `json:"freshness_threshold,omitempty"`
-	EventHandler               string            `json:"event_handler,omitempty"`
-	EventHandlerEnabled        string            `json:"event_handler_enabled,omitempty"`
-	LowFlapThreshold           string            `json:"low_flap_threshold,omitempty"`
-	HighFlapThreshold          string            `json:"high_flap_threshold,omitempty"`
-	FlapDetectionEnabled       string            `json:"flap_detection_enabled,omitempty"`
-	FlapDetectionOptions       []string          `json:"flap_detection_options,omitempty"`
-	ProcessPerfData            string            `json:"process_perf_data,omitempty"`
-	RetainStatusInformation    string            `json:"retain_status_information,omitempty"`
-	RetainNonStatusInformation string            `json:"retain_nonstatus_information,omitempty"`
-	FirstNotificationDelay     string            `json:"first_notification_delay,omitempty"`
-	NotificationOptions        []string          `json:"notification_options,omitempty"`
-	NotificationsEnabled       string            `json:"notifications_enabled,omitempty"`
-	ContactGroups              []string          `json:"contact_groups,omitempty"`
-	Servicegroups              []string          `json:"servicegroups,omitempty"`
-	Notes                      string            `json:"notes,omitempty"`
-	NotesURL                   string            `json:"notes_url,omitempty"`
-	ActionURL                  string            `json:"action_url,omitempty"`
-	IconImage                  string            `json:"icon_image,omitempty"`
-	IconImageAlt               string            `json:"icon_image_alt,omitempty"`
-	Register                   string            `json:"register,omitempty"`
-	FreeVariables              map[string]string `json:"free_variables,omitempty"`
+	ServiceName                string   `json:"config_name"`
+	HostName                   []string `json:"host_name"`
+	HostgroupName              []string `json:"hostgroup_name,omitempty"`
+	DisplayName                string   `json:"display_name,omitempty"`
+	Description                string   `json:"service_description"`
+	CheckCommand               string   `json:"check_command"`
+	MaxCheckAttempts           string   `json:"max_check_attempts"`
+	CheckInterval              string   `json:"check_interval"`
+	RetryInterval              string   `json:"retry_interval"`
+	CheckPeriod                string   `json:"check_period"`
+	NotificationInterval       string   `json:"notification_interval"`
+	NotificationPeriod         string   `json:"notification_period"`
+	Contacts                   []string `json:"contacts"`
+	Templates                  []string `json:"use,omitempty"`
+	IsVolatile                 string   `json:"is_volatile,omitempty"`
+	InitialState               string   `json:"initial_state,omitempty"`
+	ActiveChecksEnabled        string   `json:"active_checks_enabled,omitempty"`
+	PassiveChecksEnabled       string   `json:"passive_checks_enabled,omitempty"`
+	ObsessOverService          string   `json:"obsess_over_service,omitempty"`
+	CheckFreshness             string   `json:"check_freshness,omitempty"`
+	FreshnessThreshold         string   `json:"freshness_threshold,omitempty"`
+	EventHandler               string   `json:"event_handler,omitempty"`
+	EventHandlerEnabled        string   `json:"event_handler_enabled,omitempty"`
+	LowFlapThreshold           string   `json:"low_flap_threshold,omitempty"`
+	HighFlapThreshold          string   `json:"high_flap_threshold,omitempty"`
+	FlapDetectionEnabled       string   `json:"flap_detection_enabled,omitempty"`
+	FlapDetectionOptions       []string `json:"flap_detection_options,omitempty"`
+	ProcessPerfData            string   `json:"process_perf_data,omitempty"`
+	RetainStatusInformation    string   `json:"retain_status_information,omitempty"`
+	RetainNonStatusInformation string   `json:"retain_nonstatus_information,omitempty"`
+	FirstNotificationDelay     string   `json:"first_notification_delay,omitempty"`
+	// NotificationOptions is []string here but a comma-joined string on
+	// Host (host.go) - a real, intentionally-preserved API asymmetry
+	// inherited from the pre-rewrite provider, not a rewrite oversight.
+	// Don't "fix" one to match the other without confirming the wire shape
+	// against a live instance first.
+	NotificationOptions  []string          `json:"notification_options,omitempty"`
+	NotificationsEnabled string            `json:"notifications_enabled,omitempty"`
+	ContactGroups        []string          `json:"contact_groups,omitempty"`
+	Servicegroups        []string          `json:"servicegroups,omitempty"`
+	Notes                string            `json:"notes,omitempty"`
+	NotesURL             string            `json:"notes_url,omitempty"`
+	ActionURL            string            `json:"action_url,omitempty"`
+	IconImage            string            `json:"icon_image,omitempty"`
+	IconImageAlt         string            `json:"icon_image_alt,omitempty"`
+	Register             string            `json:"register,omitempty"`
+	FreeVariables        map[string]string `json:"free_variables,omitempty"`
 }
 
 // NewService creates a service and applies the config change.
