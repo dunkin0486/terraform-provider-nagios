@@ -22,19 +22,19 @@ terraform {
 }
 
 provider "nagios" {
-  url   = "http://localhost/nagiosxi"  # or NAGIOS_URL env var
-  token = var.nagios_api_token         # or API_TOKEN env var
+  url   = "http://localhost/nagiosxi" # or NAGIOS_URL env var
+  token = var.nagios_api_token        # or API_TOKEN env var
 }
 
 resource "nagios_host" "web01" {
-  host_name              = "web01.example.com"
-  address                = "10.0.0.10"
-  max_check_attempts     = "3"
-  check_period           = "24x7"
-  notification_interval  = "30"
-  notification_period    = "24x7"
-  contacts               = ["nagiosadmin"]
-  templates               = ["generic-host"]
+  host_name             = "web01.example.com"
+  address               = "10.0.0.10"
+  max_check_attempts    = "3"
+  check_period          = "24x7"
+  notification_interval = "30"
+  notification_period   = "24x7"
+  contacts              = ["nagiosadmin"]
+  templates             = ["generic-host"]
 }
 ```
 
@@ -42,8 +42,8 @@ The API token is found in the Nagios XI web UI under Admin > API Key, or via `He
 
 ## Resources and data sources
 
-- Resources: `nagios_host`, `nagios_hostgroup`, `nagios_contact`, `nagios_contactgroup`, `nagios_service`, `nagios_servicegroup`, `nagios_authserver`
-- Data sources: `nagios_host`, `nagios_hostgroup`, `nagios_service`
+- Resources: `nagios_host`, `nagios_hostgroup`, `nagios_contact`, `nagios_contactgroup`, `nagios_service`, `nagios_servicegroup`, `nagios_authserver`, `nagios_timeperiod`, `nagios_command`
+- Data sources: `nagios_host`, `nagios_hostgroup`, `nagios_service`, `nagios_contact`, `nagios_contactgroup`, `nagios_servicegroup`, `nagios_authserver`
 
 ## Development
 
@@ -51,4 +51,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for build, test, and contribution instruc
 
 ## Roadmap
 
-The plan for this provider is to allow complete management of Nagios XI through code. See [#86](https://github.com/dunkin0486/terraform-provider-nagios/issues/86) for planned additions: `nagios_timeperiod`, `nagios_command`, host/service escalations and dependencies as new resources, plus data sources for the resource types above that don't have one yet (`nagios_contact`, `nagios_contactgroup`, `nagios_servicegroup`, `nagios_authserver`).
+The plan for this provider is to allow complete management of Nagios XI through code. Planned and in-progress work is tracked on the [Nagios Provider Enhancements](https://github.com/users/dunkin0486/projects/4) project board, not duplicated here.
+
+## License
+
+[MIT](LICENSE)
