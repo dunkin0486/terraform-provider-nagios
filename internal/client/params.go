@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -67,6 +68,13 @@ func setURLParams(nagiosObject interface{}) *url.Values {
 			for k, val := range v {
 				urlParams.Add(k, val)
 			}
+		default:
+			// A future client struct field of an unhandled Go kind would
+			// otherwise be silently dropped from every request with zero
+			// error or log signal (#89 finding 4) - fail loud immediately
+			// instead of leaving a mysteriously-missing parameter to be
+			// discovered later against a live instance.
+			panic(fmt.Sprintf("setURLParams: field %q (json tag %q) has unhandled type %T - add a case for it", values.Type().Field(i).Name, tag, v))
 		}
 	}
 

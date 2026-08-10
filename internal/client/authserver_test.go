@@ -44,6 +44,73 @@ func TestNewAuthServer_MergesCreateResponseIntoCallerStruct(t *testing.T) {
 	}
 }
 
+// TestNewAuthServer_FailsLoudOnMissingServerID guards against #89 finding 2:
+// if Nagios's create response ever omits server_id (violating its own
+// documented contract), json.Unmarshal succeeding with a.ServerID left as ""
+// used to look like success - a.ID would silently become "", and the
+// caller's follow-up GetAuthServer(ctx, "") would then fail with a confusing
+// "name must be provided" error, or worse, retry into a duplicate orphaned
+// auth server, even though Nagios did actually create one. NewAuthServer
+// must fail loud here instead of proceeding with an empty ID.
+func TestNewAuthServer_FailsLoudOnMissingServerID(t *testing.T) {
+	var sawApplyConfig bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/system/authserver":
+			_, _ = w.Write([]byte(`{"success":"Authentication server successfully added"}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/system/applyconfig":
+			sawApplyConfig = true
+			_, _ = w.Write([]byte(`{"success":"ok"}`))
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	a := &AuthServer{Enabled: "1", ConnectionMethod: "ldap", LDAPHost: "ldap.example.com"}
+	err := c.NewAuthServer(context.Background(), a)
+	if err == nil {
+		t.Fatal("expected an error for a create response missing server_id, got nil")
+	}
+	if sawApplyConfig {
+		t.Error("expected NewAuthServer to fail before applyconfig, since the create response never confirmed a usable ID")
+	}
+}
+
+// TestNewAuthServer_FailsLoudOnMissingServerID_FallbackPath is the sharper
+// version of the test above: UpdateAuthServer's existsErrorFor fallback (see
+// CLAUDE.md quirk 11) calls NewAuthServer with an *AuthServer whose ServerID
+// is already populated with the *old* server's ID (set by
+// resource_authserver.go's Update before the call). json.Unmarshal never
+// clears a field when the response omits its key, so a naive
+// `a.ServerID == ""` check taken right after unmarshal would silently pass
+// in this path even when the create response genuinely omits server_id,
+// because the stale old ID is still sitting there from before the call.
+// NewAuthServer must still fail loud here.
+func TestNewAuthServer_FailsLoudOnMissingServerID_FallbackPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/system/authserver":
+			_, _ = w.Write([]byte(`{"success":"Authentication server successfully added"}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/system/applyconfig":
+			_, _ = w.Write([]byte(`{"success":"ok"}`))
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	// Simulates the existsErrorFor fallback: ID/ServerID pre-populated with
+	// the old server's ID before NewAuthServer is called.
+	a := &AuthServer{ID: "old-id", ServerID: "old-id", Enabled: "1", ConnectionMethod: "ldap"}
+	if err := c.NewAuthServer(context.Background(), a); err == nil {
+		t.Fatal("expected an error for a create response missing server_id, even with a stale ServerID already set, got nil")
+	}
+}
+
 // TestGetAuthServer_EnvelopeResponseReconcilesID confirms GetAuthServer
 // unwraps the {"records", "authservers"} envelope every other object type
 // doesn't use, and reconciles ServerID <- ID after a GET (the GET response's
@@ -67,6 +134,34 @@ func TestGetAuthServer_EnvelopeResponseReconcilesID(t *testing.T) {
 	}
 	if got.ServerID != "7" {
 		t.Errorf("ServerID = %q, want %q (reconciled from id)", got.ServerID, "7")
+	}
+}
+
+// TestGetAuthServer_EnabledAsRawNumber pins down a real quirk confirmed
+// against a live instance while investigating #89: Nagios's "enabled" field
+// on this object type is a JSON string ("0"/"1") when it was ever explicitly
+// set (via create or update), but comes back as a bare JSON number (no
+// quotes) when it was never explicitly set and Nagios applied its own
+// server-side default instead. A plain `Enabled string` field fails
+// json.Unmarshal outright on the number shape - AuthServer.UnmarshalJSON
+// below normalizes both possible shapes, the same pattern Timeperiod uses
+// for its "use" field.
+func TestGetAuthServer_EnabledAsRawNumber(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"records":1,"authservers":[{"id":"7","enabled":1,"conn_method":"ldap"}]}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.GetAuthServer(context.Background(), "7")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected a non-nil auth server, got nil")
+	}
+	if got.Enabled != "1" {
+		t.Errorf("Enabled = %q, want %q", got.Enabled, "1")
 	}
 }
 
