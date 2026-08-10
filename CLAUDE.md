@@ -70,6 +70,14 @@ Docs are generated, not hand-written. Never edit `docs/*.md` directly — edit t
 
 Releases are automated via [release-please](https://github.com/googleapis/release-please) (`.github/workflows/release-please.yml`): it parses [Conventional Commits](https://www.conventionalcommits.org/) prefixes on `main` to decide the next version and drive `CHANGELOG.md`. **PR titles/merge commits need a `fix:`/`feat:`/`feat!:` (or `BREAKING CHANGE:` footer) prefix** or they won't be picked up as release-worthy — see CONTRIBUTING.md for the full mapping. Don't hand-edit `CHANGELOG.md`; release-please owns it now.
 
+### Git workflow
+
+`main` gets merged (and released) frequently by work happening outside any one session — release-please alone lands a version-bump commit on every merge. A local `main` branch is stale the moment it's not actively re-synced, and branching off a stale `main` produces a branch that's silently missing recent history (committed files disappear from the working tree on checkout, already-merged changes look like new diffs, etc.).
+
+- **Do a new git worktree for each unit of work**, rather than reusing one working directory across unrelated branches. This is what actually eliminates the stale-base problem above: each worktree tracks its own branch against a freshly-fetched base, so switching between unrelated efforts (a feature branch, a docs fix, a CI tweak) can't cross-contaminate working-tree state the way repeated `git checkout -b` in one directory can.
+- **Always fetch and fast-forward `main` before branching for new work** — `git fetch origin main && git branch -f main origin/main` (or an equivalent pull) — even if `main` was updated recently in this same session. Don't assume the local ref is current.
+- **Link new issues to the "Nagios Provider Enhancements" project on creation** — `gh issue create --project "Nagios Provider Enhancements" ...` — for new resource-type work or fix tracking, rather than filing the issue and adding it to the board as a separate step (or not at all).
+
 ## Architecture
 
 Two packages, deliberately separated by an import boundary:
@@ -84,7 +92,7 @@ These are real behaviors of the live API (verified against a running instance), 
 1. **Every response is HTTP 200, even on failure.** Success/error is only knowable by parsing the JSON body for a `success` or `error` key — see `response.go`'s `parseCommandResponse`, the single choke point for this.
 2. **Every mutating call must be followed by `POST .../system/applyconfig`** or the write never takes effect. Each `NewX`/`UpdateX`/`DeleteX` does this itself; don't factor it out of those methods.
 3. **PUT (rename) addresses the *old* name as a URL path segment**, not the new one — see `url.go`'s `buildURL`.
-4. **`service` has a verb-specific compound key**: `GetService`/`UpdateService` key off `(config_name, description)`; `DeleteService` keys off `(host_name, description)` instead, where `host_name` is the full host set comma-joined into one value. This is intentional and documented in `service.go` — don't "fix" it into consistency.
+4. **`service` keys each verb differently**: `GetService` keys off `config_name` alone (no description filter); `UpdateService` is compound-keyed off `(config_name, description)`; `DeleteService` keys off `(host_name, description)` instead, where `host_name` is the full host set comma-joined into one value. This is intentional and documented in `service.go` — don't "fix" it into consistency.
 5. **`authserver` DELETE uses a `/{id}` path segment**, unlike every other object type's query-param style.
 6. **`authserver`'s create response only contains `{"success", "server_id"}`**, not the full object — `NewAuthServer` unmarshals that response directly into the same `*AuthServer` the caller passed in (which already has the other fields populated), rather than doing a separate GET.
 7. **`authserver` has no update route at all** — `PUT system/authserver` always returns `"Unknown API endpoint."` (confirmed against a live instance, #104), not a bug in this client. `client.UpdateAuthServer` still exists (the `resource.Resource` interface requires an `Update` method), but every attribute in `resource_authserver.go`'s schema — including `enabled` — is `RequiresReplace`, so it's unreachable in practice; Terraform always plans a destroy+recreate instead.

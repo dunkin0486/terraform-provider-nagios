@@ -9,51 +9,56 @@ import (
 
 // Host mirrors the fields Nagios XI's host object API accepts/returns.
 type Host struct {
-	HostName                   string            `json:"host_name"`
-	Address                    string            `json:"address"`
-	DisplayName                string            `json:"display_name,omitempty"`
-	MaxCheckAttempts           string            `json:"max_check_attempts"`
-	CheckPeriod                string            `json:"check_period"`
-	NotificationInterval       string            `json:"notification_interval"`
-	NotificationPeriod         string            `json:"notification_period"`
-	Contacts                   []string          `json:"contacts"`
-	Alias                      string            `json:"alias,omitempty"`
-	Templates                  []string          `json:"use,omitempty"`
-	CheckCommand               string            `json:"check_command,omitempty"`
-	ContactGroups              []string          `json:"contact_groups,omitempty"`
-	Parents                    []string          `json:"parents,omitempty"`
-	Hostgroups                 []string          `json:"hostgroups,omitempty"`
-	Notes                      string            `json:"notes,omitempty"`
-	NotesURL                   string            `json:"notes_url,omitempty"`
-	ActionURL                  string            `json:"action_url,omitempty"`
-	InitialState               string            `json:"initial_state,omitempty"`
-	RetryInterval              string            `json:"retry_interval,omitempty"`
-	PassiveChecksEnabled       string            `json:"passive_checks_enabled,omitempty"`
-	ActiveChecksEnabled        string            `json:"active_checks_enabled,omitempty"`
-	ObsessOverHost             string            `json:"obsess_over_host,omitempty"`
-	EventHandler               string            `json:"event_handler,omitempty"`
-	EventHandlerEnabled        string            `json:"event_handler_enabled,omitempty"`
-	FlapDetectionEnabled       string            `json:"flap_detection_enabled,omitempty"`
-	FlapDetectionOptions       []string          `json:"flap_detection_options,omitempty"`
-	LowFlapThreshold           string            `json:"low_flap_threshold,omitempty"`
-	HighFlapThreshold          string            `json:"high_flap_threshold,omitempty"`
-	ProcessPerfData            string            `json:"process_perf_data,omitempty"`
-	RetainStatusInformation    string            `json:"retain_status_information,omitempty"`
-	RetainNonstatusInformation string            `json:"retain_nonstatus_information,omitempty"`
-	CheckFreshness             string            `json:"check_freshness,omitempty"`
-	FreshnessThreshold         string            `json:"freshness_threshold,omitempty"`
-	FirstNotificationDelay     string            `json:"first_notification_delay,omitempty"`
-	NotificationOptions        string            `json:"notification_options,omitempty"`
-	NotificationsEnabled       string            `json:"notifications_enabled,omitempty"`
-	StalkingOptions            string            `json:"stalking_options,omitempty"`
-	IconImage                  string            `json:"icon_image,omitempty"`
-	IconImageAlt               string            `json:"icon_image_alt,omitempty"`
-	VRMLImage                  string            `json:"vrml_image,omitempty"`
-	StatusMapImage             string            `json:"statusmap_image,omitempty"`
-	TwoDCoords                 string            `json:"2d_coords,omitempty"`
-	ThreeDCoords               string            `json:"3d_coords,omitempty"`
-	Register                   string            `json:"register,omitempty"`
-	FreeVariables              map[string]string `json:"free_variables,omitempty"`
+	HostName                   string   `json:"host_name"`
+	Address                    string   `json:"address"`
+	DisplayName                string   `json:"display_name,omitempty"`
+	MaxCheckAttempts           string   `json:"max_check_attempts"`
+	CheckPeriod                string   `json:"check_period"`
+	NotificationInterval       string   `json:"notification_interval"`
+	NotificationPeriod         string   `json:"notification_period"`
+	Contacts                   []string `json:"contacts"`
+	Alias                      string   `json:"alias,omitempty"`
+	Templates                  []string `json:"use,omitempty"`
+	CheckCommand               string   `json:"check_command,omitempty"`
+	ContactGroups              []string `json:"contact_groups,omitempty"`
+	Parents                    []string `json:"parents,omitempty"`
+	Hostgroups                 []string `json:"hostgroups,omitempty"`
+	Notes                      string   `json:"notes,omitempty"`
+	NotesURL                   string   `json:"notes_url,omitempty"`
+	ActionURL                  string   `json:"action_url,omitempty"`
+	InitialState               string   `json:"initial_state,omitempty"`
+	RetryInterval              string   `json:"retry_interval,omitempty"`
+	PassiveChecksEnabled       string   `json:"passive_checks_enabled,omitempty"`
+	ActiveChecksEnabled        string   `json:"active_checks_enabled,omitempty"`
+	ObsessOverHost             string   `json:"obsess_over_host,omitempty"`
+	EventHandler               string   `json:"event_handler,omitempty"`
+	EventHandlerEnabled        string   `json:"event_handler_enabled,omitempty"`
+	FlapDetectionEnabled       string   `json:"flap_detection_enabled,omitempty"`
+	FlapDetectionOptions       []string `json:"flap_detection_options,omitempty"`
+	LowFlapThreshold           string   `json:"low_flap_threshold,omitempty"`
+	HighFlapThreshold          string   `json:"high_flap_threshold,omitempty"`
+	ProcessPerfData            string   `json:"process_perf_data,omitempty"`
+	RetainStatusInformation    string   `json:"retain_status_information,omitempty"`
+	RetainNonstatusInformation string   `json:"retain_nonstatus_information,omitempty"`
+	CheckFreshness             string   `json:"check_freshness,omitempty"`
+	FreshnessThreshold         string   `json:"freshness_threshold,omitempty"`
+	FirstNotificationDelay     string   `json:"first_notification_delay,omitempty"`
+	// NotificationOptions is a comma-joined string here but []string on
+	// Service (service.go) - a real, intentionally-preserved API asymmetry
+	// inherited from the pre-rewrite provider, not a rewrite oversight.
+	// Don't "fix" one to match the other without confirming the wire shape
+	// against a live instance first.
+	NotificationOptions  string            `json:"notification_options,omitempty"`
+	NotificationsEnabled string            `json:"notifications_enabled,omitempty"`
+	StalkingOptions      string            `json:"stalking_options,omitempty"`
+	IconImage            string            `json:"icon_image,omitempty"`
+	IconImageAlt         string            `json:"icon_image_alt,omitempty"`
+	VRMLImage            string            `json:"vrml_image,omitempty"`
+	StatusMapImage       string            `json:"statusmap_image,omitempty"`
+	TwoDCoords           string            `json:"2d_coords,omitempty"`
+	ThreeDCoords         string            `json:"3d_coords,omitempty"`
+	Register             string            `json:"register,omitempty"`
+	FreeVariables        map[string]string `json:"free_variables,omitempty"`
 }
 
 // NewHost creates a host and applies the config change.
