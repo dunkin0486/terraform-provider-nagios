@@ -139,13 +139,12 @@ func (r *authServerResource) Create(ctx context.Context, req resource.CreateRequ
 		return
 	}
 
-	// Nagios has no natural lookup key we know ahead of a create (server_id
-	// is assigned by Nagios itself), so there's no way to retry-poll for a
-	// specific ID the way the other resources do. The immediate GET-after-
-	// create race is far less likely here in practice: LDAP/AD servers are
-	// typically created one at a time, not fanned out in rapid succession
-	// like the acceptance suite's host/hostgroup tests, so this is a plain
-	// GET rather than client.RetryUntilFound.
+	// This is a plain GET rather than client.RetryUntilFound: the immediate
+	// GET-after-create race every other resource guards against is far less
+	// likely here in practice. LDAP/AD servers are typically created one at a
+	// time, not fanned out in rapid succession like the acceptance suite's
+	// host/hostgroup tests, so the extra retry complexity isn't worth it for
+	// this resource.
 	got, err := r.client.GetAuthServer(ctx, a.ID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading authentication server after create", err.Error())
