@@ -51,15 +51,15 @@ func (d *authServerDataSource) Configure(ctx context.Context, req datasource.Con
 	if req.ProviderData == nil {
 		return
 	}
-	c, ok := req.ProviderData.(*client.Client)
+	pd, ok := req.ProviderData.(*providerData)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *client.Client, got: %T. This is a bug in the provider.", req.ProviderData),
+			fmt.Sprintf("Expected *providerData, got: %T. This is a bug in the provider.", req.ProviderData),
 		)
 		return
 	}
-	d.client = c
+	d.client = pd.XI
 }
 
 func (d *authServerDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
