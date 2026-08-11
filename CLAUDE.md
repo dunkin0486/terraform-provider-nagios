@@ -41,7 +41,12 @@ TF_ACC=1 go test -v -count=1 ./internal/provider/... -run TestAccHostBasic    # 
 
 ### Coverage goal
 
-Codecov reports coverage on every PR (`codecov.yml`) but doesn't gate merges — `informational: true` on both `project` and `patch`, intentionally, since acceptance-tested `internal/provider` code and TDD'd `internal/client` code aren't well served by a hard percentage gate. Even so, treat 80% unit coverage (`go test ./internal/client/... ./internal/provider/... -cover`) as a goal to work toward on any package you touch, not just a number Codecov prints — new client/provider logic should come with the unit tests the TDD workflow above already asks for, and that in turn is what moves this number. Baseline at the time this was written: `internal/client` ~57%, `internal/provider` ~39%.
+Codecov gates PRs on `internal/client` coverage, but only reports (doesn't gate) on `internal/provider` — the split, not a blanket rule, is intentional (`codecov.yml`):
+
+- **`internal/client`** is exercised entirely by unit tests in CI (`httptest`, no external dependency), so the number Codecov sees is the real number. `project.client` fails a PR that drops overall `internal/client` coverage (`target: auto`, `threshold: 0.5%` to absorb line-count noise, not real regressions); `patch.client` requires new/changed `internal/client` lines to hit 80% coverage, matching the goal below and pushing new code toward the TDD workflow rather than just aspiring to it.
+- **`internal/provider`** stays `informational: true` for both `project` and `patch`. It's primarily verified by `TF_ACC=1` acceptance tests, which never run in CI (see below) and so never count toward Codecov's number — gating on it would either block PRs that are properly acceptance-tested but have modest *unit* coverage, or incentivize padding with low-value unit tests just to satisfy the gate.
+
+Treat 80% unit coverage (`go test ./internal/client/... ./internal/provider/... -cover`) as the goal on `internal/provider` too, even though nothing enforces it there — new provider logic should still come with the unit tests the TDD workflow below already asks for. Baseline at the time this was written: `internal/client` ~57%, `internal/provider` ~39%.
 
 The container reports itself `healthy` once installed; `docker compose ps` from `test/docker/nagiosxi/` confirms this. See `test/docker/nagiosxi/README.md` for the installer quirks that were worked around to get it booting (Rocky Linux OS-detection, php-fpm ACL support, etc.) — that layer is unrelated to the provider code itself.
 
