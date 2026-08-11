@@ -1,9 +1,42 @@
 coverage:
   status:
     project:
+      # internal/client is unit-tested in CI (httptest, no external
+      # dependency) - a decrease here is a real regression, so it's a hard
+      # gate. target: auto compares against the PR base's client coverage;
+      # threshold absorbs float noise from line-count shifts (e.g. a new
+      # file changing the covered/total ratio slightly) that aren't an
+      # actual drop in test rigor.
+      client:
+        target: auto
+        threshold: 0.5%
+        paths:
+          - internal/client/
+      # internal/provider is primarily verified by TF_ACC=1 acceptance
+      # tests (see CLAUDE.md), which never run in CI and so never count
+      # toward this number - gating on it would either block legitimately
+      # acceptance-tested PRs or incentivize low-value unit tests written
+      # just to satisfy the gate. Stays informational until CI can run
+      # acceptance tests.
+      provider:
+        informational: true
+        paths:
+          - internal/provider/
       default:
         informational: true
     patch:
+      # New internal/client lines are expected to ship TDD'd per CLAUDE.md's
+      # workflow - patch coverage enforces that goal directly rather than
+      # via target: auto, which would only require matching the (currently
+      # ~57%) project baseline.
+      client:
+        target: 80%
+        paths:
+          - internal/client/
+      provider:
+        informational: true
+        paths:
+          - internal/provider/
       default:
         informational: true
 
