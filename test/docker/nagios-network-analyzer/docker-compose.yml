@@ -1,0 +1,25 @@
+services:
+  nagiosna:
+    build: .
+    image: terraform-provider-nagios-test-nna:latest
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /tmp
+      - /run
+      - /run/lock
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    ports:
+      - "8081:80"
+      - "8444:443"
+    healthcheck:
+      # fullinstall takes several minutes on first boot; start_period gives
+      # it room before failed checks count against the container. Much
+      # faster than nagiosxi's install (no from-source compiles), but this
+      # is still a first-run budget, not a steady-state one.
+      test: ["CMD", "curl", "-fsk", "http://localhost/install"]
+      interval: 15s
+      timeout: 10s
+      retries: 40
+      start_period: 10m
