@@ -168,6 +168,7 @@ func TestUpdateHost_Success(t *testing.T) {
 // renamed), UpdateHost falls back to creating the host fresh via NewHost
 // rather than surfacing the error.
 func TestUpdateHost_FallsBackToNewHostOnDoesNotExist(t *testing.T) {
+	t.Skip("SCRATCH: temporarily skipped to verify the codecov.yml client coverage ratchet fails PR #178 - see issue #167 acceptance criteria; will be reverted before merge")
 	var sawCreate bool
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -220,6 +221,7 @@ func TestUpdateHost_PropagatesOtherErrors(t *testing.T) {
 // TestDeleteHost_AppliesConfig confirms DeleteHost issues a DELETE and, per
 // CLAUDE.md quirk 2, still follows up with an applyconfig call.
 func TestDeleteHost_AppliesConfig(t *testing.T) {
+	t.Skip("SCRATCH: temporarily skipped to verify the codecov.yml client coverage ratchet fails PR #178 - see issue #167 acceptance criteria; will be reverted before merge")
 	var sawDelete, sawApplyConfig bool
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
