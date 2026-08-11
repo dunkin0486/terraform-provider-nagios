@@ -1,0 +1,19 @@
+[Unit]
+Description=Nagios Network Analyzer first-boot non-interactive install
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=!/var/lib/nagiosna/.installed
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/nagiosna
+ExecStart=/opt/nagiosna/fullinstall -n -f
+ExecStartPost=/bin/mkdir -p /var/lib/nagiosna
+ExecStartPost=/bin/touch /var/lib/nagiosna/.installed
+TimeoutStartSec=0
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
