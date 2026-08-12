@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  statuses: write
 
 jobs:
   # lint/test are required status checks on main. A trigger-level paths
@@ -84,3 +85,34 @@ jobs:
           flags: unit
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
+  # codecov/project/client and codecov/patch/client are required status
+  # checks on main, but unlike lint/test above they aren't native GitHub
+  # Actions check runs - they're posted by the Codecov app only after it
+  # receives an upload from the `test` job. A skipped `test` job (no Go
+  # changes) never uploads anything, so Codecov never reports either
+  # context for this commit and the required check sits "Expected -
+  # waiting for status" forever, blocking merge on every PR that doesn't
+  # touch Go code (release-please PRs, docs-only PRs, etc). When there's
+  # no internal/client diff to ratchet against, synthesize a passing
+  # status for both contexts directly via the Commit Status API instead.
+  codecov-passthrough:
+    needs: changes
+    if: needs.changes.outputs.provider == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post passing status for required codecov checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # pull_request events set github.sha to a synthetic merge commit;
+          # required status checks are evaluated against the PR's actual
+          # head commit, so prefer that when present.
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          for context in codecov/project/client codecov/patch/client; do
+            gh api "repos/$REPO/statuses/$SHA" \
+              -f state=success \
+              -f context="$context" \
+              -f description="No internal/client changes in this diff"
+          done
