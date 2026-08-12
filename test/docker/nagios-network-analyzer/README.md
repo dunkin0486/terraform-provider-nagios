@@ -28,6 +28,10 @@ Unlike XI, NNA has no perpetual unlicensed "free mode" - only a 30-day trial or 
 
 Unlike `nagiosxi`'s `fullinstall` (which seeds an admin account and API key that then need a separate "enable API access" step - see `test/docker/nagiosxi/get-api-token.sh`), NNA's `fullinstall` does **not** create an admin user or token at all. That only happens via the web install wizard's final step, `POST /api/v1/install` - `install-and-get-token.sh` drives that call directly and hands back the Sanctum API token from its response, along with the matching `NNA_URL`. This can only succeed once per container; re-running it after a successful install fails loudly rather than silently returning a stale/wrong token - see the script's own comments.
 
+## Speeding up local runs with a prebuilt image
+
+`docker-compose.yml` names a private GHCR package (`ghcr.io/dunkin0486/terraform-provider-nagios-test-nna`) so `docker compose up` can pull a prebuilt image instead of rebuilding - see `test/docker/nagiosxi/README.md`'s "Speeding up local runs with a prebuilt image" for the one-time setup steps (PAT, `docker login ghcr.io`, `./build-and-push.sh`, then confirming the package is **Private**). Same mechanics here; the only difference is the package name. NNA's own build is a few minutes rather than nagiosxi's ~50, so this matters less here, but it's still one less thing to wait on when iterating on `nna_*` resources.
+
 ## Fixes applied (in case your environment hits something different)
 
 The Dockerfile/service unit were written by adapting `test/docker/nagiosxi/`'s already-proven Rocky Linux 9 base and workarounds to NNA's own installer (`fullinstall`, `libinstall.sh`), then actually running it. Two of the five issues found are identical to XI's own documented fixes; three are new to NNA:
@@ -42,4 +46,4 @@ One more oddity seen but not fixed in the Dockerfile, since it didn't block anyt
 
 ## Licensing note
 
-Do not push the built image to a public registry - check Nagios's license/EULA terms first. Build/run it locally or in private CI only.
+Do not push the built image to a public registry - check Nagios's license/EULA terms first. Build/run it locally, in private CI, or via the private GHCR package above (must stay **Private**) only.

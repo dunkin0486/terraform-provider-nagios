@@ -1,7 +1,10 @@
 services:
   nagiosxi:
     build: .
-    image: terraform-provider-nagios-test-nagiosxi:latest
+    # Private GHCR package - `docker compose up` pulls this if it's present
+    # and you're logged in (docker login ghcr.io), and falls back to `build`
+    # above otherwise. See README.md for one-time setup.
+    image: ghcr.io/dunkin0486/terraform-provider-nagios-test-nagiosxi:latest
     privileged: true
     cgroup: host
     tmpfs:
