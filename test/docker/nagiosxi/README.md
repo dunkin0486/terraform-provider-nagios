@@ -28,6 +28,19 @@ One occasional flake seen: `TestAccHostgroupCreateAfterManualDestroy` failing wi
 
 `fullinstall` gets XI installed but does not create or enable an API key - historically that happens via a web-based setup wizard on first login. Turns out that's a red herring for scripting purposes: `fullinstall`'s own DB import already seeds an `api_key` value for the default `nagiosadmin` account in the `xi_users` table, it's just sitting there with `api_enabled=0`. No wizard-scraping needed - `get-api-token.sh` in this directory flips that flag on and prints the key plus the matching `NAGIOS_URL` (the DB credentials themselves are generated fresh per install, so it reads them out of XI's own `config.inc.php` rather than assuming fixed values).
 
+## Speeding up local runs with a prebuilt image
+
+First boot takes ~50 minutes because `docker compose up --build` compiles Nagios XI from source every time. `docker-compose.yml` also names a private GHCR package (`ghcr.io/dunkin0486/terraform-provider-nagios-test-nagiosxi`) so later runs can pull a prebuilt image instead of rebuilding.
+
+One-time setup:
+
+1. Create a classic PAT with `write:packages` scope (add `read:packages` too if you'll pull from a different machine) at https://github.com/settings/tokens.
+2. `echo "$GITHUB_TOKEN" | docker login ghcr.io -u dunkin0486 --password-stdin`
+3. `./build-and-push.sh` — builds and pushes `:latest`.
+4. Follow the script's printed link and confirm the package is set to **Private** — required by the licensing note below; GHCR doesn't reliably default a freshly-pushed package to private.
+
+After that, plain `docker compose up -d` (no `--build`) pulls the image when you're logged in and a newer one exists, and transparently falls back to building locally (same as today) if you're logged out, on a machine without registry access, or before the first push. Re-run `./build-and-push.sh` whenever `Dockerfile` or `nagiosxi-install.service` changes — it's not wired into CI or any automatic trigger.
+
 ## Fixes applied (in case your environment hits something different)
 
 The original Dockerfile/service unit were written from reading Nagios's installer scripts (`fullinstall`, `functions.sh`, `init.sh`, `get-os-info`) without a container runtime available to test against. Running it for real surfaced these issues, all now fixed in `Dockerfile` / `nagiosxi-install.service`:
@@ -42,4 +55,4 @@ The original Dockerfile/service unit were written from reading Nagios's installe
 
 ## Licensing note
 
-Do not push the built image to a public registry - check Nagios's license/EULA terms first. Build/run it locally or in private CI only.
+Do not push the built image to a public registry - check Nagios's license/EULA terms first. Build/run it locally, in private CI, or via the private GHCR package above (must stay **Private**) only.
