@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## [2.7.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.6.1...v2.7.0) (2026-08-12)
+
+
+### Features
+
+* add nagios_nna_source resource for Nagios Network Analyzer ([#179](https://github.com/dunkin0486/terraform-provider-nagios/issues/179)) ([f64d98b](https://github.com/dunkin0486/terraform-provider-nagios/commit/f64d98b560c94e69f05d10f09a5fadfc02de956c))
+
+
+### Bug Fixes
+
+* make codecov patch.client a baseline ratchet instead of a fixed 80% floor ([#181](https://github.com/dunkin0486/terraform-provider-nagios/issues/181)) ([39463f8](https://github.com/dunkin0486/terraform-provider-nagios/commit/39463f873b0e0e04f84319b7af85fadb158a178b))
+
 ## [2.6.1](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.6.0...v2.6.1) (2026-08-10)
 
 
