@@ -23,6 +23,10 @@ terraform {
 provider "nagios" {
   url   = "http://localhost/nagiosxi"
   token = var.nagios_api_token
+
+  # Only required if nna_* resources/data sources are used.
+  nna_url     = "http://localhost:8081"
+  nna_api_key = var.nna_api_key
 }
 ```
 
@@ -31,5 +35,7 @@ provider "nagios" {
 
 ### Optional
 
+- `nna_api_key` (String, Sensitive) API token to authenticate to Nagios Network Analyzer. Only required if nna_* resources/data sources are used. Defaults to the NNA_API_KEY environment variable if not set.
+- `nna_url` (String) The URL of the Nagios Network Analyzer application. Only required if nna_* resources/data sources are used. Defaults to the NNA_URL environment variable if not set.
 - `token` (String, Sensitive) API token to authenticate to Nagios XI. Defaults to the API_TOKEN environment variable if not set.
 - `url` (String) The URL of the Nagios XI application. Defaults to the NAGIOS_URL environment variable if not set.

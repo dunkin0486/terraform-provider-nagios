@@ -12,12 +12,25 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/dunkin0486/terraform-provider-nagios/internal/client"
+	"github.com/dunkin0486/terraform-provider-nagios/internal/client/nna"
 )
 
 var _ provider.Provider = &nagiosProvider{}
 
 type nagiosProvider struct {
 	version string
+}
+
+// providerData is what Configure hands to every resource/data source as
+// ProviderData. XI is always non-nil (the provider's url/token are
+// required eagerly, see Configure below). NNA is nil unless nna_url/
+// nna_api_key were actually set - those credentials are Optional and
+// unvalidated here so that existing XI-only configs keep working
+// unchanged; it's each nna_* resource's own Configure that errors if it's
+// declared without NNA nil.
+type providerData struct {
+	XI  *client.Client
+	NNA *nna.Client
 }
 
 // New returns a factory for a fresh instance of the Nagios provider.
@@ -30,8 +43,10 @@ func New(version string) func() provider.Provider {
 }
 
 type nagiosProviderModel struct {
-	URL   types.String `tfsdk:"url"`
-	Token types.String `tfsdk:"token"`
+	URL       types.String `tfsdk:"url"`
+	Token     types.String `tfsdk:"token"`
+	NNAURL    types.String `tfsdk:"nna_url"`
+	NNAAPIKey types.String `tfsdk:"nna_api_key"`
 }
 
 func (p *nagiosProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -51,6 +66,15 @@ func (p *nagiosProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Optional:    true,
 				Sensitive:   true,
 				Description: "API token to authenticate to Nagios XI. Defaults to the API_TOKEN environment variable if not set.",
+			},
+			"nna_url": schema.StringAttribute{
+				Optional:    true,
+				Description: "The URL of the Nagios Network Analyzer application. Only required if nna_* resources/data sources are used. Defaults to the NNA_URL environment variable if not set.",
+			},
+			"nna_api_key": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "API token to authenticate to Nagios Network Analyzer. Only required if nna_* resources/data sources are used. Defaults to the NNA_API_KEY environment variable if not set.",
 			},
 		},
 	}
@@ -96,9 +120,28 @@ func (p *nagiosProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	c := client.NewClient(url, token)
-	resp.ResourceData = c
-	resp.DataSourceData = c
+	// Unlike url/token above, nna_url/nna_api_key are never hard-required
+	// here - most configs don't use any nna_* resource, and forcing every
+	// existing XI-only user to also set these would be a breaking change.
+	// A missing value just leaves pd.NNA nil; each nna_* resource's own
+	// Configure errors on that if it's actually declared.
+	nnaURL := config.NNAURL.ValueString()
+	if config.NNAURL.IsNull() {
+		nnaURL = os.Getenv("NNA_URL")
+	}
+
+	nnaAPIKey := config.NNAAPIKey.ValueString()
+	if config.NNAAPIKey.IsNull() {
+		nnaAPIKey = os.Getenv("NNA_API_KEY")
+	}
+
+	pd := &providerData{XI: client.NewClient(url, token)}
+	if nnaURL != "" && nnaAPIKey != "" {
+		pd.NNA = nna.NewClient(nnaURL, nnaAPIKey)
+	}
+
+	resp.ResourceData = pd
+	resp.DataSourceData = pd
 }
 
 func (p *nagiosProvider) Resources(ctx context.Context) []func() resource.Resource {
@@ -112,6 +155,7 @@ func (p *nagiosProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewAuthServerResource,
 		NewTimeperiodResource,
 		NewCommandResource,
+		NewNNASourceResource,
 	}
 }
 

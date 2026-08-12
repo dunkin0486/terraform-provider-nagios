@@ -42,7 +42,7 @@ The API token is found in the Nagios XI web UI under Admin > API Key, or via `He
 
 ## Resources and data sources
 
-- Resources: `nagios_host`, `nagios_hostgroup`, `nagios_contact`, `nagios_contactgroup`, `nagios_service`, `nagios_servicegroup`, `nagios_authserver`, `nagios_timeperiod`, `nagios_command`
+- Resources: `nagios_host`, `nagios_hostgroup`, `nagios_contact`, `nagios_contactgroup`, `nagios_service`, `nagios_servicegroup`, `nagios_authserver`, `nagios_timeperiod`, `nagios_command`, `nagios_nna_source`
 - Data sources: `nagios_host`, `nagios_hostgroup`, `nagios_service`, `nagios_contact`, `nagios_contactgroup`, `nagios_servicegroup`, `nagios_authserver`
 
 ## Development
