@@ -7,17 +7,21 @@ import (
 )
 
 // buildURL generates the Nagios XI API URL for the given objectType (e.g.
-// "host", "service", "authserver", "applyconfig") and HTTP method.
+// "host", "service", "authserver", "user", "applyconfig") and HTTP method.
 //
 //   - GET/DELETE filter results via a single "<objectName>=<name>" query
-//     param, except DELETE on "authserver", which Nagios expects as a
-//     "/<name>" path segment instead - a real inconsistency in the API, not
-//     something normalized away here.
-//   - PUT addresses the *old* name as a path segment (rename-in-place) plus
-//     force=1; for "service" it additionally appends "/<objectDescription>"
-//     to the path, since services are addressed by (name, description).
-//     The returned URL intentionally ends with a trailing "&" so callers can
-//     append setURLParams(...).Encode() directly (see host.go etc.).
+//     param, except DELETE on "authserver"/"user", which Nagios expects as a
+//     "/<id>" path segment instead - a real inconsistency in the API, not
+//     something normalized away here. GET's filter is skipped entirely when
+//     objectName is empty, for "user"'s full-list fetch (see user.go's
+//     GetUser - Nagios silently ignores its username= filter, so listing
+//     must be unfiltered and scanned client-side).
+//   - PUT addresses the *old* name/id as a path segment (rename-in-place)
+//     plus force=1; for "service" it additionally appends
+//     "/<objectDescription>" to the path, since services are addressed by
+//     (name, description). The returned URL intentionally ends with a
+//     trailing "&" so callers can append setURLParams(...).Encode() directly
+//     (see host.go etc.).
 //   - POST needs force=1 for every object type except "applyconfig" itself.
 func buildURL(baseURL, token, objectType, method, objectName, name, oldVal, objectDescription string) (string, error) {
 	var nagiosURL strings.Builder
@@ -29,7 +33,7 @@ func buildURL(baseURL, token, objectType, method, objectName, name, oldVal, obje
 		if method != http.MethodPost {
 			return "", errors.New("you must use a HTTP POST when performing an applyconfig")
 		}
-	case "authserver":
+	case "authserver", "user":
 		apiType = "system"
 	default:
 		apiType = "config"
@@ -48,18 +52,20 @@ func buildURL(baseURL, token, objectType, method, objectName, name, oldVal, obje
 	case http.MethodGet:
 		nagiosURL.WriteString("?apikey=")
 		nagiosURL.WriteString(token)
-		nagiosURL.WriteString("&")
-		nagiosURL.WriteString(objectName)
-		nagiosURL.WriteString("=")
 
-		if name == "" {
-			return "", errors.New("name must be provided when using the " + method + " method")
+		if objectName != "" {
+			if name == "" {
+				return "", errors.New("name must be provided when using the " + method + " method")
+			}
+			nagiosURL.WriteString("&")
+			nagiosURL.WriteString(objectName)
+			nagiosURL.WriteString("=")
+			nagiosURL.WriteString(name)
 		}
-		nagiosURL.WriteString(name)
 		nagiosURL.WriteString("&pretty=1")
 
 	case http.MethodDelete:
-		if objectType == "authserver" {
+		if objectType == "authserver" || objectType == "user" {
 			nagiosURL.WriteString("/" + name)
 		}
 		nagiosURL.WriteString("?apikey=")

@@ -52,6 +52,36 @@ func TestBuildURL_DELETE_AuthServerUsesPathSegment(t *testing.T) {
 	}
 }
 
+// user's DELETE addresses by /<id> path segment, same real inconsistency as
+// authserver's DELETE above - unlike authserver, user has no update route
+// gap (#104), but shares this same wire-level addressing quirk (#174).
+func TestBuildURL_DELETE_UserUsesPathSegment(t *testing.T) {
+	got, err := buildURL("http://localhost/nagiosxi", "TOKEN", "user", http.MethodDelete, "user_id", "5", "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "http://localhost/nagiosxi/api/v1/system/user/5?apikey=TOKEN&user_id=5"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// GET system/user's own username= filter is silently ignored by Nagios
+// (#174), so GetUser must fetch the full list unfiltered. An empty
+// objectName skips the filter query param entirely instead of erroring -
+// every other GetX always passes a non-empty objectName, so this is
+// additive, not a behavior change for existing callers.
+func TestBuildURL_GET_NoFilterListsAll(t *testing.T) {
+	got, err := buildURL("http://localhost/nagiosxi", "TOKEN", "user", http.MethodGet, "", "", "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "http://localhost/nagiosxi/api/v1/system/user?apikey=TOKEN&pretty=1"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
 func TestBuildURL_PUT_RenameUsesOldNameInPath(t *testing.T) {
 	got, err := buildURL("http://localhost/nagiosxi", "TOKEN", "host", http.MethodPut, "host_name", "newname", "oldname", "")
 	if err != nil {
@@ -353,8 +383,8 @@ func TestMapArrayToString(t *testing.T) {
 	}
 }
 
-func TestRedactAPIKey(t *testing.T) {
-	got := redactAPIKey("http://localhost/nagiosxi/api/v1/config/host?apikey=SUPERSECRETTOKEN&host_name=foo")
+func TestRedactSensitiveParams_APIKey(t *testing.T) {
+	got := redactSensitiveParams("http://localhost/nagiosxi/api/v1/config/host?apikey=SUPERSECRETTOKEN&host_name=foo")
 	if strings.Contains(got, "SUPERSECRETTOKEN") {
 		t.Errorf("token leaked in redacted URL: %q", got)
 	}
@@ -366,15 +396,34 @@ func TestRedactAPIKey(t *testing.T) {
 	}
 }
 
-func TestRedactAPIKey_NoTokenParam(t *testing.T) {
-	got := redactAPIKey("http://localhost/nagiosxi/api/v1/config/host?host_name=foo")
-	if got != "http://localhost/nagiosxi/api/v1/config/host?host_name=foo" {
-		t.Errorf("expected URL unchanged when no apikey param present, got %q", got)
+// TestRedactSensitiveParams_Password guards a real leak path introduced by
+// user.go: every UpdateX PUT in this client sends its full parameter set via
+// the URL's query string (buildURL + setURLParams(...).Encode()), not the
+// request body - so nagios_user's password field ends up in the request URL
+// on every update, and a transient network failure would otherwise print it
+// in plaintext via sanitizeTransportError.
+func TestRedactSensitiveParams_Password(t *testing.T) {
+	got := redactSensitiveParams("http://localhost/nagiosxi/api/v1/system/user/9?apikey=TOKEN&pretty=1&force=1&password=SUPERSECRETPASSWORD&username=jdoe")
+	if strings.Contains(got, "SUPERSECRETPASSWORD") {
+		t.Errorf("password leaked in redacted URL: %q", got)
+	}
+	if !strings.Contains(got, "password=REDACTED") {
+		t.Errorf("expected redacted URL to contain password=REDACTED, got %q", got)
+	}
+	if !strings.Contains(got, "username=jdoe") {
+		t.Errorf("expected other query params to survive redaction, got %q", got)
 	}
 }
 
-func TestRedactAPIKey_Unparseable(t *testing.T) {
-	got := redactAPIKey("://not a url")
+func TestRedactSensitiveParams_NoSensitiveParam(t *testing.T) {
+	got := redactSensitiveParams("http://localhost/nagiosxi/api/v1/config/host?host_name=foo")
+	if got != "http://localhost/nagiosxi/api/v1/config/host?host_name=foo" {
+		t.Errorf("expected URL unchanged when no sensitive param present, got %q", got)
+	}
+}
+
+func TestRedactSensitiveParams_Unparseable(t *testing.T) {
+	got := redactSensitiveParams("://not a url")
 	if strings.Contains(got, "not a url") {
 		t.Errorf("expected unparseable URL not to be echoed back verbatim, got %q", got)
 	}

@@ -65,32 +65,44 @@ func (c *Client) do(ctx context.Context, method, nagiosURL string, body io.Reade
 }
 
 // sanitizeTransportError strips the request URL - and with it, the apikey
-// token embedded in it - out of transport-level errors before they can reach
-// a Terraform diagnostic. http.NewRequestWithContext and http.Client.Do both
-// wrap failures in *url.Error, whose own Error() string includes the full
-// request URL verbatim (Go's net/url.Error format is "<op> <url>: <err>").
-// That's the only leak path here, but it's a real one: any transient network
-// failure would otherwise print the live API token to CLI output, CI logs,
-// and TF_LOG traces. Terraform's Sensitive:true on the provider's token
-// schema attribute does NOT protect freeform diagnostic strings like this -
-// it only governs how tracked state/plan values are displayed.
+// token (and, since user.go, a plaintext password - every UpdateX PUT in
+// this client sends its full parameter set via the URL's query string, not
+// the request body, see url.go's buildURL) embedded in it - out of
+// transport-level errors before they can reach a Terraform diagnostic.
+// http.NewRequestWithContext and http.Client.Do both wrap failures in
+// *url.Error, whose own Error() string includes the full request URL
+// verbatim (Go's net/url.Error format is "<op> <url>: <err>"). That's the
+// only leak path here, but it's a real one: any transient network failure
+// would otherwise print the live API token - or, for a nagios_user
+// create/update, the account's password - to CLI output, CI logs, and
+// TF_LOG traces. Terraform's Sensitive:true on the relevant schema
+// attributes does NOT protect freeform diagnostic strings like this - it
+// only governs how tracked state/plan values are displayed.
 func sanitizeTransportError(nagiosURL string, err error) error {
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
-		return fmt.Errorf("%s %s: %w", urlErr.Op, redactAPIKey(nagiosURL), urlErr.Err)
+		return fmt.Errorf("%s %s: %w", urlErr.Op, redactSensitiveParams(nagiosURL), urlErr.Err)
 	}
 	return err
 }
 
-// redactAPIKey replaces the apikey query parameter's value with "REDACTED".
-func redactAPIKey(rawURL string) string {
+// redactSensitiveParams replaces the apikey and password query parameters'
+// values with "REDACTED". apikey is present on every request; password only
+// appears on a nagios_user create/update (see sanitizeTransportError).
+func redactSensitiveParams(rawURL string) string {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return "<unparseable URL>"
 	}
 	q := u.Query()
-	if q.Has("apikey") {
-		q.Set("apikey", "REDACTED")
+	changed := false
+	for _, key := range []string{"apikey", "password"} {
+		if q.Has(key) {
+			q.Set(key, "REDACTED")
+			changed = true
+		}
+	}
+	if changed {
 		u.RawQuery = q.Encode()
 	}
 	return u.String()

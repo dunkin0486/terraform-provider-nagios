@@ -156,6 +156,7 @@ func (p *nagiosProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewTimeperiodResource,
 		NewCommandResource,
 		NewNNASourceResource,
+		NewUserResource,
 	}
 }
 
@@ -168,5 +169,6 @@ func (p *nagiosProvider) DataSources(ctx context.Context) []func() datasource.Da
 		NewContactgroupDataSource,
 		NewServicegroupDataSource,
 		NewAuthServerDataSource,
+		NewUserDataSource,
 	}
 }
