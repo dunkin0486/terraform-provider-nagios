@@ -32,20 +32,30 @@ type User struct {
 	AuthServerID  string `json:"auth_server_id,omitempty"`
 }
 
-// UnmarshalJSON normalizes "enabled"'s wire shape the same way
-// AuthServer.UnmarshalJSON does: Nagios has been confirmed to send this kind
-// of Computed+Default bool field as a JSON string once it's ever been
-// explicitly set (via create or update), but as a bare JSON number if it was
-// never explicitly set and Nagios applied its own server-side default -
-// which this provider's own Create/Update never trigger (the resource's
-// enabled schema attribute is Computed+Default, so terraform-plugin-
-// framework always sends a concrete value), but an account created outside
-// Terraform and then imported could. A plain `Enabled string` field fails
-// json.Unmarshal outright on the number shape without this. Every other
-// field decodes via the struct's own json tags as usual.
+// UnmarshalJSON normalizes two fields' wire shape, both confirmed against a
+// live instance:
+//
+//   - "user_id" comes back as a bare JSON number on the create response
+//     (`{"success":"...","user_id":9}`, not `"9"`) even though every other
+//     object type's equivalent ID field (e.g. authserver's "server_id") is a
+//     quoted string - discovered by this client's own acceptance suite, not
+//     anticipated by #174's investigation notes.
+//   - "enabled" is a JSON string once it's ever been explicitly set (via
+//     create or update), but a bare JSON number if it was never explicitly
+//     set and Nagios applied its own server-side default - the same
+//     Computed+Default dual-shape quirk AuthServer.UnmarshalJSON normalizes.
+//     This provider's own Create/Update never trigger the number shape (the
+//     resource's enabled schema attribute is Computed+Default, so
+//     terraform-plugin-framework always sends a concrete value), but an
+//     account created outside Terraform and then imported could.
+//
+// A plain `string` field fails json.Unmarshal outright on the number shape
+// without this. Every other field decodes via the struct's own json tags as
+// usual.
 func (u *User) UnmarshalJSON(data []byte) error {
 	type userAlias User
 	aux := &struct {
+		ID      json.RawMessage `json:"user_id,omitempty"`
 		Enabled json.RawMessage `json:"enabled,omitempty"`
 		*userAlias
 	}{userAlias: (*userAlias)(u)}
@@ -53,22 +63,41 @@ func (u *User) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, aux); err != nil {
 		return err
 	}
+
+	if len(aux.ID) > 0 {
+		id, err := stringOrNumberJSON(aux.ID)
+		if err != nil {
+			return err
+		}
+		u.ID = id
+	}
+
 	if len(aux.Enabled) == 0 {
 		return nil
 	}
 
+	enabled, err := stringOrNumberJSON(aux.Enabled)
+	if err != nil {
+		return err
+	}
+	u.Enabled = enabled
+	return nil
+}
+
+// stringOrNumberJSON decodes a raw JSON value that Nagios sends as either a
+// quoted string or a bare number, depending on the field/scenario (see
+// User.UnmarshalJSON), into a Go string either way.
+func stringOrNumberJSON(raw json.RawMessage) (string, error) {
 	var asString string
-	if err := json.Unmarshal(aux.Enabled, &asString); err == nil {
-		u.Enabled = asString
-		return nil
+	if err := json.Unmarshal(raw, &asString); err == nil {
+		return asString, nil
 	}
 
 	var asNumber json.Number
-	if err := json.Unmarshal(aux.Enabled, &asNumber); err != nil {
-		return err
+	if err := json.Unmarshal(raw, &asNumber); err != nil {
+		return "", err
 	}
-	u.Enabled = asNumber.String()
-	return nil
+	return asNumber.String(), nil
 }
 
 // usersListResponse is the envelope Nagios wraps user GET results in - the
@@ -85,12 +114,15 @@ type usersListResponse struct {
 // monitoring core config applyconfig regenerates.
 //
 // Like NewAuthServer, the create response body is only
-// {"success":"...", "user_id":"..."} - not the full object - so this
+// {"success":"...", "user_id":<id>} - not the full object - so this
 // unmarshals that response directly into the caller's already-populated *u,
-// leaving its other fields untouched while filling in ID. a.ID is reset
-// before unmarshaling so a non-empty ID afterward is guaranteed to have come
-// from this response - UpdateUser's existsErrorFor fallback calls this with
-// a *User whose ID is already populated with the *old* user's ID.
+// leaving its other fields untouched while filling in ID. Unlike
+// NewAuthServer's server_id, user_id comes back as a bare JSON number here,
+// not a quoted string - confirmed by this client's own acceptance suite, see
+// User.UnmarshalJSON. u.ID is reset before unmarshaling so a non-empty ID
+// afterward is guaranteed to have come from this response - UpdateUser's
+// existsErrorFor fallback calls this with a *User whose ID is already
+// populated with the *old* user's ID.
 func (c *Client) NewUser(ctx context.Context, u *User) error {
 	nagiosURL, err := buildURL(c.baseURL, c.token, "user", http.MethodPost, "", "", "", "")
 	if err != nil {

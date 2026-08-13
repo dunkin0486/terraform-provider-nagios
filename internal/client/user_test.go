@@ -9,12 +9,15 @@ import (
 
 // TestNewUser_MergesCreateResponseIntoCallerStruct is #174's thin-response
 // quirk, same shape as AuthServer's: the create response body is only
-// {"success":"...", "user_id":"..."} - not the full object - so NewUser
+// {"success":"...", "user_id":<id>} - not the full object - so NewUser
 // unmarshals that response directly into the caller's already-populated
 // *User, leaving the other fields (set from the caller's input) untouched
 // while filling in ID. It also confirms no applyconfig call is made - #174
 // found XI-panel user accounts take effect immediately, unlike core
-// monitoring config objects (CLAUDE.md quirk 2).
+// monitoring config objects (CLAUDE.md quirk 2). user_id is a bare JSON
+// number here, not a quoted string - confirmed against a live instance by
+// this client's own acceptance suite (unlike authserver's server_id, a
+// quoted string) - see TestNewUser_UserIDAsRawNumber for the dedicated case.
 func TestNewUser_MergesCreateResponseIntoCallerStruct(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -28,7 +31,7 @@ func TestNewUser_MergesCreateResponseIntoCallerStruct(t *testing.T) {
 			if got := r.PostFormValue("auth_level"); got != "admin" {
 				t.Errorf("auth_level = %q, want %q", got, "admin")
 			}
-			_, _ = w.Write([]byte(`{"success":"User successfully added","user_id":"9"}`))
+			_, _ = w.Write([]byte(`{"success":"User successfully added","user_id":9}`))
 		default:
 			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
@@ -45,6 +48,30 @@ func TestNewUser_MergesCreateResponseIntoCallerStruct(t *testing.T) {
 	}
 	if u.Email != "jdoe@example.com" {
 		t.Errorf("expected caller-supplied Email to survive the merge, got %q", u.Email)
+	}
+}
+
+// TestNewUser_UserIDAsRawNumber is a dedicated regression test for the same
+// case TestNewUser_MergesCreateResponseIntoCallerStruct's response body
+// already exercises: Nagios sends user_id back as a bare JSON number, not a
+// quoted string, on the create response - discovered by running this
+// client's own acceptance suite against a live instance, not anticipated by
+// #174's investigation notes. Without User.UnmarshalJSON's normalization,
+// json.Unmarshal fails outright with "cannot unmarshal number into Go
+// struct field ... of type string".
+func TestNewUser_UserIDAsRawNumber(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"success":"User successfully added","user_id":42}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	u := &User{Username: "jdoe", Password: "s3cret", Name: "Jane Doe", Email: "jdoe@example.com", AuthLevel: "user"}
+	if err := c.NewUser(context.Background(), u); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if u.ID != "42" {
+		t.Errorf("ID = %q, want %q", u.ID, "42")
 	}
 }
 
