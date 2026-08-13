@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## [2.8.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.7.0...v2.8.0) (2026-08-13)
+
+
+### Features
+
+* add nagios_user resource and data source for Nagios XI login accounts ([#187](https://github.com/dunkin0486/terraform-provider-nagios/issues/187)) ([7f5ec3b](https://github.com/dunkin0486/terraform-provider-nagios/commit/7f5ec3babfadfbfbfbd307f775ef456718550f4c))
+
 ## [2.7.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.6.1...v2.7.0) (2026-08-12)
 
 
