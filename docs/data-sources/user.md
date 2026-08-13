@@ -3,12 +3,12 @@
 page_title: "nagios_user Data Source - terraform-provider-nagios"
 subcategory: ""
 description: |-
-  Reads an existing Nagios XI login/admin panel user account by username.
+  Reads an existing Nagios XI login/admin panel user account by username. Note: Nagios's API has no server-side filter by username for this object type, so this lookup fetches the entire unfiltered user list; expected to be low-cost for most deployments' small, admin-managed user counts, but may be noticeably slower with a very large number of users.
 ---
 
 # nagios_user (Data Source)
 
-Reads an existing Nagios XI login/admin panel user account by username.
+Reads an existing Nagios XI login/admin panel user account by username. Note: Nagios's API has no server-side filter by username for this object type, so this lookup fetches the entire unfiltered user list; expected to be low-cost for most deployments' small, admin-managed user counts, but may be noticeably slower with a very large number of users.
 
 ## Example Usage
 

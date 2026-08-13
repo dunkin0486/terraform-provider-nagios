@@ -60,7 +60,7 @@ func (r *userResource) Metadata(ctx context.Context, req resource.MetadataReques
 
 func (r *userResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages a Nagios XI login/admin panel user account (system/user) - distinct from a monitoring nagios_contact, which only receives alerts and has no login capability.",
+		Description: "Manages a Nagios XI login/admin panel user account (system/user) - distinct from a monitoring nagios_contact, which only receives alerts and has no login capability. Note: Nagios's API has no server-side filter by username for this object type, so every lookup (Create's post-write confirmation, every Read/Update, and the nagios_user data source) fetches the entire unfiltered user list; this is expected to be low-cost for the small, admin-managed set of XI panel accounts most deployments have, but may be noticeably slower with a very large number of users.",
 		Attributes: map[string]schema.Attribute{
 			"user_id": schema.StringAttribute{
 				Computed:      true,

@@ -50,7 +50,7 @@ func (d *userDataSource) Metadata(ctx context.Context, req datasource.MetadataRe
 // write-only on the resource and have no readable value to expose here.
 func (d *userDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Reads an existing Nagios XI login/admin panel user account by username.",
+		Description: "Reads an existing Nagios XI login/admin panel user account by username. Note: Nagios's API has no server-side filter by username for this object type, so this lookup fetches the entire unfiltered user list; expected to be low-cost for most deployments' small, admin-managed user counts, but may be noticeably slower with a very large number of users.",
 		Attributes: map[string]schema.Attribute{
 			"username": schema.StringAttribute{
 				Required:    true,
