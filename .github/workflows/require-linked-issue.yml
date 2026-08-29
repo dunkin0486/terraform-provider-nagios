@@ -1,0 +1,37 @@
+name: require linked issue
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  require-linked-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for a linked issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          count=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  closingIssuesReferences { totalCount }
+                }
+              }
+            }' -F owner="$OWNER" -F repo="$REPO" -F pr="$PR_NUMBER" \
+            --jq '.data.repository.pullRequest.closingIssuesReferences.totalCount')
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No linked issue found. Per CLAUDE.md, every PR needs an issue linked via a closing keyword (e.g. 'Closes #123') in the PR description."
+            exit 1
+          fi
+
+          echo "Linked issue count: $count"
