@@ -1,0 +1,8 @@
+.git
+.github
+test/docker
+docs
+examples
+*.md
+.env
+.env.*

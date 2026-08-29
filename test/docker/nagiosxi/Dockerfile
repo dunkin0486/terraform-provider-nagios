@@ -33,7 +33,16 @@ RUN dnf -y --allowerasing install wget tar which curl sudo dnf-plugins-core \
     && dnf clean all
 
 WORKDIR /opt
+# Nagios publishes no checksum or signature for this tarball (checked
+# xi-latest.tar.gz.sha256/.sha256sum/.asc and a top-level CHECKSUMS file -
+# all 404 via assets.nagios.com's redirect handler), so this hash is
+# self-recorded against the release current as of this writing (2026R1.7,
+# released 2026-08-04) purely to catch an unexpected content change on a
+# later `docker build`, not to provide third-party provenance. If this
+# check starts failing, Nagios has shipped a new "latest" build - review
+# what changed before recomputing the hash and bumping this comment.
 RUN wget -q https://assets.nagios.com/downloads/nagiosxi/xi-latest.tar.gz \
+    && echo '812d7baa63bc440f2872f724fcd92d343a1532e654e1a12d6cdec9467da93fba  xi-latest.tar.gz' | sha256sum -c - \
     && tar xzf xi-latest.tar.gz \
     && rm xi-latest.tar.gz \
     # The installer's OS detection (get-os-info) only recognizes CentOS/RHEL/Oracle
