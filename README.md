@@ -62,3 +62,4 @@ The plan for this provider is to allow complete management of Nagios XI through 
 ## License
 
 [MIT](LICENSE)
+throwaway change to test the require-linked-issue check fails without a linked issue
