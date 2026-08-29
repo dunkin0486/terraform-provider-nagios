@@ -11,6 +11,14 @@ permissions:
 jobs:
   require-linked-issue:
     runs-on: ubuntu-latest
+    # release-please's version-bump PR (github-actions[bot]) and Dependabot's
+    # dependency-bump PRs (dependabot[bot]) are automated and never have a
+    # linked issue to reference - skipping (not passing) is the right call
+    # here, and it reports as "skipped" rather than a failure, which
+    # required-status-checks treats as passing, the same way test.yml's
+    # lint/test jobs skip via `if: needs.changes...`. Both logins are
+    # GitHub-controlled bot identities a regular contributor's PR can't spoof.
+    if: github.event.pull_request.user.login != 'github-actions[bot]' && github.event.pull_request.user.login != 'dependabot[bot]'
     steps:
       - name: Check for a linked issue
         env:
