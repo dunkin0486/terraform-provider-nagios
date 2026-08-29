@@ -42,7 +42,15 @@ RUN dnf -y --allowerasing install wget tar which curl sudo dnf-plugins-core \
     && dnf clean all
 
 WORKDIR /opt
+# Same lack of an official checksum/signature documented in
+# test/docker/nagiosxi/Dockerfile - this hash is self-recorded against the
+# release current as of this writing (2026R1.5, released 2026-07-08) to
+# catch an unexpected content change on a later `docker build`, not to
+# provide third-party provenance. If this check starts failing, Nagios has
+# shipped a new "latest" build - review what changed before recomputing the
+# hash and bumping this comment.
 RUN wget -q https://assets.nagios.com/downloads/nagios-network-analyzer/nagiosna-latest.tar.gz \
+    && echo 'c44bc61d11d65998aaa0cf0ed56687f32ef09b536ba864dae43a61b303e00a21  nagiosna-latest.tar.gz' | sha256sum -c - \
     && tar xzf nagiosna-latest.tar.gz \
     && rm nagiosna-latest.tar.gz \
     # Same OS-detection gap XI's installer has (CLAUDE.md-documented
