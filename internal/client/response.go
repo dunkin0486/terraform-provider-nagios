@@ -37,6 +37,31 @@ func parseCommandResponse(body []byte) error {
 	return &APIError{Message: r.Error}
 }
 
+// envelopeError checks a GET response body for a top-level "error" key
+// before the caller trusts an envelope-shaped ({"records", "<type>":[...]})
+// unmarshal as authoritative. Unlike a bare []X array response (see
+// TestGetHost_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound: an
+// {"error":"..."} body already fails json.Unmarshal into []X loudly), an
+// envelope struct has no "error" field of its own, so encoding/json's
+// default "ignore unknown fields" behavior lets {"error":"..."} decode
+// silently into a zero-value envelope (Records==0, no entries) -
+// indistinguishable from a genuine zero-result GET. GetAuthServer and
+// GetUser call this before trusting their envelope unmarshal.
+func envelopeError(body []byte) error {
+	var probe struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(body, &probe); err != nil {
+		// Malformed JSON: let the caller's own envelope unmarshal surface
+		// this failure with its usual error message.
+		return nil
+	}
+	if probe.Error != "" {
+		return &APIError{Message: probe.Error}
+	}
+	return nil
+}
+
 // existsErrorFor reports whether err is Nagios's "Does the X exist?" signal
 // for the given object type name (e.g. "host", "service"). UpdateX methods
 // use this to fall back to creating the object fresh when a PUT targets a

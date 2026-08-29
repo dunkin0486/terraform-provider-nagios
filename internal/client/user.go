@@ -163,6 +163,9 @@ func (c *Client) GetUser(ctx context.Context, username string) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := envelopeError(body); err != nil {
+		return nil, err
+	}
 
 	var resp usersListResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
