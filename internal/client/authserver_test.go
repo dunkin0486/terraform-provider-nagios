@@ -184,6 +184,33 @@ func TestGetAuthServer_NotFound(t *testing.T) {
 	}
 }
 
+// TestGetAuthServer_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound guards
+// against #189: unlike GetHost (#89 finding 3, see
+// TestGetHost_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound), GetAuthServer
+// unmarshals into an envelope struct ({"records", "authservers": [...]})
+// rather than a bare array. An {"error":"..."} response has neither a
+// "records" nor an "authservers" key, so json.Unmarshal silently ignores it
+// and leaves the envelope at its zero value - Records==0, Entries==nil -
+// which used to look exactly like a genuine zero-result GET. Confirmed
+// against a live instance (#189): an auth failure returns the same
+// {"error":"..."} object shape host's GET does. GetAuthServer must now
+// surface that as an error instead of (nil, nil).
+func TestGetAuthServer_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"error":"Invalid API Key"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.GetAuthServer(context.Background(), "7")
+	if err == nil {
+		t.Fatal("expected an error for an {\"error\":...} response body, got nil")
+	}
+	if got != nil {
+		t.Errorf("expected a nil auth server alongside the error, got %+v", got)
+	}
+}
+
 // TestUpdateAuthServer_DoesNotFallBackOnUnknownEndpoint is CLAUDE.md quirk 7:
 // authserver has no real update route at all - PUT always returns "Unknown
 // API endpoint.", not "Does the authentication server exist?" - so the

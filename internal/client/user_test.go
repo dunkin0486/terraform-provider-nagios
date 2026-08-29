@@ -201,6 +201,33 @@ func TestGetUser_ZeroRecordsEnvelope(t *testing.T) {
 	}
 }
 
+// TestGetUser_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound guards
+// against #189: unlike GetHost (#89 finding 3, see
+// TestGetHost_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound), GetUser
+// unmarshals into an envelope struct ({"records", "users": [...]}) rather
+// than a bare array. An {"error":"..."} response has neither a "records" nor
+// a "users" key, so json.Unmarshal silently ignores it and leaves the
+// envelope at its zero value - Records==0, Entries==nil - which used to look
+// exactly like a genuine zero-result GET. Confirmed against a live instance
+// (#189): an auth failure returns the same {"error":"..."} object shape
+// host's GET does. GetUser must now surface that as an error instead of
+// (nil, nil).
+func TestGetUser_ErrorObjectResponseIsNotSilentlyTreatedAsNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"error":"Invalid API Key"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.GetUser(context.Background(), "jdoe")
+	if err == nil {
+		t.Fatal("expected an error for an {\"error\":...} response body, got nil")
+	}
+	if got != nil {
+		t.Errorf("expected a nil user alongside the error, got %+v", got)
+	}
+}
+
 // TestUpdateUser_PUTAddressesOldIDPathSegment confirms UpdateUser addresses
 // the PUT by the old numeric ID as a path segment (#174: user is addressed
 // by user_id, not by name, unlike host/contact's rename-by-old-name PUT) and

@@ -155,6 +155,9 @@ func (c *Client) GetAuthServer(ctx context.Context, id string) (*AuthServer, err
 	if err != nil {
 		return nil, err
 	}
+	if err := envelopeError(body); err != nil {
+		return nil, err
+	}
 
 	var resp authServerListResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
