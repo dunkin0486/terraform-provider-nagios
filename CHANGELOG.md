@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## [2.8.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.7.0...v2.8.0) (2026-08-29)
+
+
+### Features
+
+* add nagios_user resource and data source for Nagios XI login accounts ([#187](https://github.com/dunkin0486/terraform-provider-nagios/issues/187)) ([7f5ec3b](https://github.com/dunkin0486/terraform-provider-nagios/commit/7f5ec3babfadfbfbfbd307f775ef456718550f4c))
+
+
+### Bug Fixes
+
+* detect masked API errors in GetAuthServer/GetUser's envelope GET responses ([#192](https://github.com/dunkin0486/terraform-provider-nagios/issues/192)) ([56fb2cb](https://github.com/dunkin0486/terraform-provider-nagios/commit/56fb2cbffefafd2ce1e28e115d6656b3c7fd1469))
+* exempt release-please/dependabot PRs from require-linked-issue ([#200](https://github.com/dunkin0486/terraform-provider-nagios/issues/200)) ([25d4042](https://github.com/dunkin0486/terraform-provider-nagios/commit/25d4042a80a0ad4026cce315cf8d5ac5fab4c79e))
+
 ## [2.7.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.6.1...v2.7.0) (2026-08-12)
 
 
