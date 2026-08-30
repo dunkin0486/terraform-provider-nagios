@@ -37,7 +37,21 @@ TF_ACC=1 go test -v -count=1 ./internal/provider/... -run TestAccHostBasic    # 
 
 `get-api-token.sh` must be run with `test/docker/nagiosxi/` as the working directory (it relies on `docker compose` finding the compose file via cwd). Always pass `-count=1` when re-running acceptance tests — Go caches test results by default, which silently skips re-hitting the live container.
 
-**Run the full acceptance suite before opening a PR that touches `internal/client` or `internal/provider`.** CI does not do this for you — `.github/workflows/test.yml` only runs unit tests and lint, since booting the Docker instance takes ~50 minutes and `TF_ACC` is never set in CI. Every real bug found while building this provider (the `getX`-never-returns-nil bug, `free_variables` never round-tripping correctly, `2d_coords`/`3d_coords` being invalid Terraform attribute names) was caught by actually running the acceptance suite against a live instance — none of them were caught by `go build`, `go vet`, or a unit test.
+`./internal/provider/...` also contains `nna_*` resource acceptance tests (`TestAccNNA*`), which need a **second**, separate live instance — a real Nagios XI instance alone is not enough to make the full suite pass. The `test/docker/nagios-network-analyzer/` directory boots one the same way:
+
+```bash
+cd test/docker/nagios-network-analyzer
+docker compose up --build -d              # first boot: a few minutes - no from-source compile, unlike nagiosxi
+docker compose ps                          # wait for "healthy"
+eval "$(./install-and-get-token.sh)"      # sets API_TOKEN and NNA_URL - succeeds only once per container
+
+cd /path/to/repo/root
+TF_ACC=1 NNA_URL=$NNA_URL NNA_API_KEY=$API_TOKEN go test -v -count=1 ./internal/provider/... -run TestAccNNA
+```
+
+Both instances share the `API_TOKEN` env var name for their respective `get-api-token.sh`/`install-and-get-token.sh` output — don't `eval` both in the same shell without renaming one, or the second `eval` silently clobbers the first. Run the XI and NNA suites as separate `go test` invocations with the right env vars for each (as above), or export the XI token under a different variable name (e.g. `API_TOKEN=$XI_TOKEN`) before sourcing the NNA one, rather than trying to have `NAGIOS_URL`/`API_TOKEN` and `NNA_URL`/`NNA_API_KEY` all live simultaneously from two sequential `eval` calls.
+
+**Run the full acceptance suite before opening a PR that touches `internal/client` or `internal/provider`** — both the XI-backed suite and, if the change touches anything under `internal/client/nna` or an `nna_*` resource/data source, the NNA-backed `TestAccNNA*` tests too. CI does not do this for you — `.github/workflows/test.yml` only runs unit tests and lint, since booting either Docker instance takes real wall-clock time (XI: ~50 minutes first boot; NNA: a few minutes) and `TF_ACC` is never set in CI. Every real bug found while building this provider (the `getX`-never-returns-nil bug, `free_variables` never round-tripping correctly, `2d_coords`/`3d_coords` being invalid Terraform attribute names, source-group `sources` field's omit-vs-preserve PUT asymmetry) was caught by actually running the acceptance suite against a live instance — none of them were caught by `go build`, `go vet`, or a unit test.
 
 ### Coverage goal
 
