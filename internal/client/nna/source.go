@@ -46,7 +46,11 @@ type Source struct {
 	// the dedicated Start/Stop actions below. Note RestartSource does NOT
 	// reactivate an inactive source despite reporting success - confirmed
 	// live; callers that want to (re)activate a stopped source must call
-	// StartSource, not restart.
+	// StartSource, not restart. Unlike restart, Start/Stop themselves were
+	// separately verified live (#183) - including redundant calls (start
+	// while already active, stop while already inactive) and rapid
+	// stop/start toggling - and is_active reliably matched the requested
+	// action every time, no false-success case found.
 	IsActive int `json:"is_active"`
 }
 
