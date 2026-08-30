@@ -95,6 +95,10 @@ func (c *Client) put(ctx context.Context, path string, body any) ([]byte, int, e
 	return c.do(ctx, http.MethodPut, path, body)
 }
 
+func (c *Client) patch(ctx context.Context, path string, body any) ([]byte, int, error) {
+	return c.do(ctx, http.MethodPatch, path, body)
+}
+
 func (c *Client) delete(ctx context.Context, path string) ([]byte, int, error) {
 	return c.do(ctx, http.MethodDelete, path, nil)
 }
