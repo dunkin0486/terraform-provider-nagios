@@ -17,6 +17,11 @@ set -euo pipefail
 
 SERVICE="${1:-nagiosxi}"
 LOCAL_TAG="nagiosxi-postinstall:local"
+# Every service fullinstall enables on el9 (internal/../nagiosxi-install.service's
+# 15-chkconfigalldaemons: nagios npcd ntpd mysqld crond httpd sshd, plus
+# php-fpm/postfix) except sshd, which nagiosxi-install.service already
+# disables permanently after install.
+STATEFUL_SERVICES="nagios npcd crond httpd php-fpm postfix mysqld"
 
 cd "$(dirname "$0")"
 
@@ -31,6 +36,16 @@ if ! docker exec "$CONTAINER" test -f /var/lib/nagiosxi/.installed; then
     echo "Tail progress with: docker compose exec $SERVICE journalctl -u nagiosxi-install.service -f" >&2
     exit 1
 fi
+
+# `docker commit` only freezes the container's processes for the duration of
+# the snapshot, it doesn't flush them - committing mysqld live risks capturing
+# an unclean InnoDB shutdown (stale mysqld.pid, crash-recovery on next boot),
+# so stop everything stateful first and restart it after, regardless of
+# whether the commit succeeds, to leave this container serving normally again.
+# shellcheck disable=SC2086
+docker exec "$CONTAINER" systemctl stop $STATEFUL_SERVICES
+# shellcheck disable=SC2086
+trap 'docker exec "$CONTAINER" systemctl start $STATEFUL_SERVICES' EXIT
 
 docker commit "$CONTAINER" "$LOCAL_TAG"
 
