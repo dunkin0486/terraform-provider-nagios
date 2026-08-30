@@ -1,13 +1,13 @@
 ---
 name: nagios-field
-description: Add a new field to an existing nagios_* resource (host, service, hostgroup, servicegroup, etc.) following this repo's TDD workflow. Use when asked to "add field X to resource Y", add a Nagios attribute to a resource/data source, or expose a new Nagios API parameter in the provider. Not for adding a whole new resource type - that's higher-variance, per #106.
+description: Add a new field to an existing nagios_* resource (host, service, hostgroup, servicegroup, etc.) following this repo's TDD workflow. Use when asked to "add field X to resource Y", add a Nagios attribute to a resource/data source, or expose a new Nagios API parameter in the provider. Not for adding a whole new resource/data source type - use nagios-new-resource for that.
 ---
 
 # nagios-field: add a field to an existing resource
 
 Encodes the "add a new field to an existing resource" loop from `CLAUDE.md`'s TDD workflow so it's followed the same way every time, instead of being re-derived by hand. Built while implementing #106 (5 fields across host/service/hostgroup/servicegroup) and #109 (`host.parents`) - see those PRs for worked examples of every step below.
 
-**Scope**: field-level additions to an existing `internal/client`/`internal/provider` object type only. A brand-new resource type is out of scope for this skill - each new object type tends to surface its own API quirk (see `CLAUDE.md`'s quirks list), so it doesn't fit a rigid template and needs case-by-case treatment instead.
+**Scope**: field-level additions to an existing `internal/client`/`internal/provider` object type only. A brand-new resource or data source type is out of scope for this skill - see the `nagios-new-resource` skill instead.
 
 ## 0. Before touching code: verify the field is real, not just whitelisted
 
