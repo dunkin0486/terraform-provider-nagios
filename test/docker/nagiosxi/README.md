@@ -30,7 +30,9 @@ One occasional flake seen: `TestAccHostgroupCreateAfterManualDestroy` failing wi
 
 ## Speeding up local runs with a prebuilt image
 
-First boot takes ~50 minutes because `docker compose up --build` compiles Nagios XI from source every time. `docker-compose.yml` also names a private GHCR package (`ghcr.io/dunkin0486/terraform-provider-nagios-test-nagiosxi`) so later runs can pull a prebuilt image instead of rebuilding.
+`docker build` itself is fast - the `~50 minutes` is `fullinstall` running at container *boot*, not part of the image build (see `Dockerfile`'s and `nagiosxi-install.service`'s comments). This prebuilt image only saves the build-time cost of re-extracting the installer tarball and pulling OS packages fresh on every machine/checkout - see the next section for actually skipping the `fullinstall` boot-time cost.
+
+`docker-compose.yml` names a private GHCR package (`ghcr.io/dunkin0486/terraform-provider-nagios-test-nagiosxi`) so later runs can pull a prebuilt (pre-install) image instead of rebuilding it.
 
 One-time setup:
 
@@ -40,6 +42,22 @@ One-time setup:
 4. Follow the script's printed link and confirm the package is set to **Private** — required by the licensing note below; GHCR doesn't reliably default a freshly-pushed package to private.
 
 After that, plain `docker compose up -d` (no `--build`) pulls the image when you're logged in and a newer one exists, and transparently falls back to building locally (same as today) if you're logged out, on a machine without registry access, or before the first push. Re-run `./build-and-push.sh` whenever `Dockerfile` or `nagiosxi-install.service` changes — it's not wired into CI or any automatic trigger.
+
+## Speeding up local runs from a post-install snapshot
+
+The prebuilt image above still runs the full `fullinstall` on first boot (~10-50 minutes depending on host/network - measured ~10m26s on one machine, install CPU time alone was ~9m13s). For local dev iteration that wants a clean-slate instance without re-paying that cost every time (scoped in #168), `snapshot-local.sh` commits an already-installed container to a **local-only** image tag instead:
+
+```
+docker compose up -d                                    # normal boot, wait for install to finish
+./snapshot-local.sh                                      # commits the running container to nagiosxi-postinstall:local
+NAGIOSXI_IMAGE=nagiosxi-postinstall:local docker compose up -d --force-recreate   # ~10s to healthy, already installed
+```
+
+Since `docker-compose.yml` mounts no data volumes, each `--force-recreate` starts from the snapshot's exact post-install state again (any hosts/services created by a previous test run are discarded, not accumulated) - this is a clean slate on every boot, it just isn't a *fresh install* on every boot.
+
+**This tag must never be pushed to any registry, including the private GHCR package above.** Unlike the pre-install image, `fullinstall` bakes live secrets into the filesystem - the `nagiosxi` MySQL user's password, `config.inc.php`'s DB credentials, the `nagiosadmin` API key - and every container started from a shared image would carry the exact same values (confirmed: hashing those credentials from two containers derived from the same snapshot produced identical hashes). Keeping the snapshot local-only keeps that exposure to the one machine that ran the install. Secret rotation on first boot from a snapshot (so it could be shared beyond one machine) is deferred - see #210.
+
+Re-run `./snapshot-local.sh` whenever you want to refresh the snapshot (e.g. after `Dockerfile`/`nagiosxi-install.service` changes, or to capture a newer XI release) - like `build-and-push.sh`, it's a manual step, not wired into any automatic trigger.
 
 ## Fixes applied (in case your environment hits something different)
 
@@ -55,4 +73,4 @@ The original Dockerfile/service unit were written from reading Nagios's installe
 
 ## Licensing note
 
-Do not push the built image to a public registry - check Nagios's license/EULA terms first. Build/run it locally, in private CI, or via the private GHCR package above (must stay **Private**) only.
+Do not push the built image to a public registry - check Nagios's license/EULA terms first. Build/run it locally, in private CI, or via the private GHCR package above (must stay **Private**) only. The `nagiosxi-postinstall:local` snapshot from the section above is stricter still: never push it anywhere, even to that private package - see that section for why.

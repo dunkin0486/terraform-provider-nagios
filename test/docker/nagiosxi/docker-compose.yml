@@ -4,7 +4,14 @@ services:
     # Private GHCR package - `docker compose up` pulls this if it's present
     # and you're logged in (docker login ghcr.io), and falls back to `build`
     # above otherwise. See README.md for one-time setup.
-    image: ghcr.io/dunkin0486/terraform-provider-nagios-test-nagiosxi:latest
+    #
+    # Set NAGIOSXI_IMAGE to a local tag (e.g. after running
+    # snapshot-local.sh) to boot from a fully-installed local snapshot
+    # instead - skips the ~10-50min fullinstall entirely. Only do this once
+    # that tag already exists locally: if it doesn't, `up` falls back to
+    # building a fresh (pre-install) image under that same tag, per the
+    # pull/build fallback described above.
+    image: ${NAGIOSXI_IMAGE:-ghcr.io/dunkin0486/terraform-provider-nagios-test-nagiosxi:latest}
     privileged: true
     cgroup: host
     tmpfs:
