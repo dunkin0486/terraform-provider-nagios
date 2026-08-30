@@ -265,3 +265,113 @@ func TestDeleteSourceGroup_IdempotentOnAlreadyGone(t *testing.T) {
 		t.Errorf("expected no error deleting an already-gone id, got %v", err)
 	}
 }
+
+// TestListSourceGroups_PropagatesServerError confirms a non-2xx response
+// from the list endpoint is surfaced as an error rather than silently
+// decoded as an empty result.
+func TestListSourceGroups_PropagatesServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.ListSourceGroups(context.Background())
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if got != nil {
+		t.Errorf("expected a nil slice on error, got %+v", got)
+	}
+}
+
+// TestNewSourceGroup_PropagatesListErrorDuringNameLookup confirms a failure
+// in the post-create name lookup (getSourceGroupByName's call to
+// ListSourceGroups) is surfaced as an error, not masked as not-found.
+func TestNewSourceGroup_PropagatesListErrorDuringNameLookup(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			_, _ = w.Write([]byte(`{"message":"Source group created successfully."}`))
+		case http.MethodGet:
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+		}
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.NewSourceGroup(context.Background(), &SourceGroup{Name: "test"})
+	if err == nil {
+		t.Fatal("expected an error from the failing name lookup, got nil")
+	}
+	if got != nil {
+		t.Errorf("expected a nil source group on lookup failure, got %+v", got)
+	}
+}
+
+// TestGetSourceGroup_PropagatesServerError confirms a non-2xx, non-404
+// response is surfaced as an error rather than treated as not-found.
+func TestGetSourceGroup_PropagatesServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.GetSourceGroup(context.Background(), 1)
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if got != nil {
+		t.Errorf("expected a nil source group on error, got %+v", got)
+	}
+}
+
+// TestUpdateSourceGroup_PropagatesServerErrorWithoutFollowUpGet confirms a
+// non-2xx PUT response is surfaced as an error and does not attempt the
+// follow-up GET (unlike a successful PUT, which always does).
+func TestUpdateSourceGroup_PropagatesServerErrorWithoutFollowUpGet(t *testing.T) {
+	var sawGet bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = w.Write([]byte(`{"message":"The name field is required.","errors":{"name":["The name field is required."]}}`))
+		case http.MethodGet:
+			sawGet = true
+			_, _ = w.Write([]byte(`{"id":5,"name":"x","sources":[]}`))
+		}
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	got, err := c.UpdateSourceGroup(context.Background(), 5, &SourceGroup{})
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	if got != nil {
+		t.Errorf("expected a nil source group on error, got %+v", got)
+	}
+	if sawGet {
+		t.Error("expected no follow-up GET after a failed PUT, got one")
+	}
+}
+
+// TestDeleteSourceGroup_PropagatesServerError confirms a non-2xx DELETE
+// response is surfaced as an error.
+func TestDeleteSourceGroup_PropagatesServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "TOKEN")
+	if err := c.DeleteSourceGroup(context.Background(), 1); err == nil {
+		t.Error("expected an error, got nil")
+	}
+}
