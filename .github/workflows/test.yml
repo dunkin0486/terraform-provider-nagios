@@ -72,11 +72,16 @@ jobs:
       - uses: actions/checkout@v7
         with:
           # git diff against the PR base commit below needs real history -
-          # the default shallow (fetch-depth: 1) checkout only has HEAD.
-          # Only pull_request runs use it (see the step's own `if:` further
-          # down), so push-triggered runs (merges to main, release-please's
-          # version-bump commits) keep the cheap shallow checkout.
-          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
+          # the default shallow (fetch-depth: 1) checkout only has HEAD. A
+          # conditional expression here (0 only for pull_request) hits
+          # GitHub Actions' "falsy zero" ternary trap - `cond && 0 || 1`
+          # always evaluates to 1, since 0 itself is falsy and `||` can't
+          # tell "the middle operand deliberately produced 0" apart from
+          # "the middle operand was never reached" - confirmed live (#205)
+          # when it silently left every pull_request run shallow anyway,
+          # breaking the exemption step's git diff below outright. Unlike
+          # the `changes` job above, always fetch-depth: 0 unconditionally.
+          fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
