@@ -70,6 +70,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # git diff against the PR base commit below needs real history -
+          # the default shallow (fetch-depth: 1) checkout only has HEAD.
+          # Only pull_request runs use it (see the step's own `if:` further
+          # down), so push-triggered runs (merges to main, release-please's
+          # version-bump commits) keep the cheap shallow checkout.
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
       - uses: actions/setup-go@v7
         with:
           go-version: '1.25'
@@ -79,6 +86,58 @@ jobs:
       - run: go build ./...
       - run: go test -v -coverprofile=coverage.out -covermode=atomic ./internal/...
       - run: terraform fmt -check -recursive examples/
+      # A brand-new internal/client/**/*.go file starts every PR at a
+      # coverage disadvantage vs. the codecov.yml ratchet below, which
+      # compares against internal/client's mature, multi-PR-averaged
+      # coverage - a new file with genuine (but first-draft) coverage can
+      # fail codecov/patch/client and codecov/project/client for being new,
+      # not for being undertested (#205, following #204's nna_source_group
+      # and #213's nna_user both hitting this). Codecov's own config has no
+      # "this file is new to this PR" concept to carve out, so this computes
+      # it ourselves: any *.go file added (not modified) under internal/
+      # client/ since the PR's base commit is held to a fixed floor instead
+      # of the ratchet, then stripped from coverage.out before upload so
+      # Codecov's own ratchet math never sees it. Once merged, the file
+      # exists in the next PR's base commit and is no longer "new" - it's
+      # ratcheted normally like every other existing file from then on, with
+      # no follow-up cleanup step required. Skipped for push events (no PR
+      # base to compare against); those only happen on already-merged main
+      # commits anyway.
+      - name: Exempt brand-new internal/client files from the coverage ratchet
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          MODPATH="$(awk '/^module /{print $2}' go.mod)"
+          MIN_COVERAGE=50
+
+          new_files="$(git diff --name-status "$BASE"...HEAD -- internal/client/ | awk -F'\t' '$1 == "A" && $2 ~ /\.go$/ && $2 !~ /_test\.go$/ {print $2}')"
+          if [ -z "$new_files" ]; then
+            echo "No new internal/client files in this diff."
+            exit 0
+          fi
+
+          fail=0
+          while IFS= read -r f; do
+            target="$MODPATH/$f"
+            pct=$(awk -v target="$target" '
+              { split($1, a, ":")
+                if (a[1] == target) { total += $2; if ($3 > 0) covered += $2 } }
+              END { if (total == 0) print 0; else printf "%d", (covered/total)*100 }
+            ' coverage.out)
+            echo "$f is new this PR: ${pct}% covered (fixed floor for new files: ${MIN_COVERAGE}%)"
+            if [ "$pct" -lt "$MIN_COVERAGE" ]; then
+              echo "::error file=$f::New file $f is only ${pct}% covered, below the ${MIN_COVERAGE}% floor required even for a first PR."
+              fail=1
+              continue
+            fi
+            grep -vF "${target}:" coverage.out > coverage.out.tmp && mv coverage.out.tmp coverage.out
+          done <<< "$new_files"
+
+          if [ "$fail" -eq 1 ]; then
+            exit 1
+          fi
       - uses: codecov/codecov-action@v7
         with:
           files: coverage.out
