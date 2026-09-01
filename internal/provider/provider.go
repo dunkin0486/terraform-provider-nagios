@@ -2,9 +2,11 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -31,6 +33,28 @@ type nagiosProvider struct {
 type providerData struct {
 	XI  *client.Client
 	NNA *nna.Client
+}
+
+// nnaClientFrom extracts the *nna.Client every nna_* resource/data source
+// needs out of ProviderData, appending an error diagnostic and returning nil
+// if the type assertion fails or NNA credentials weren't configured. Callers
+// still check req.ProviderData == nil themselves first (the framework calls
+// Configure with a nil ProviderData before the provider itself has been
+// configured, which isn't an error).
+func nnaClientFrom(raw any, diags *diag.Diagnostics) *nna.Client {
+	pd, ok := raw.(*providerData)
+	if !ok {
+		diags.AddError("Unexpected Resource Configure Type", fmt.Sprintf("Expected *providerData, got: %T. This is a bug in the provider.", raw))
+		return nil
+	}
+	if pd.NNA == nil {
+		diags.AddError(
+			"Missing Nagios Network Analyzer Credentials",
+			"This resource requires the provider's nna_url and nna_api_key to be set (via provider config or the NNA_URL/NNA_API_KEY environment variables), since it talks to a Nagios Network Analyzer instance rather than Nagios XI.",
+		)
+		return nil
+	}
+	return pd.NNA
 }
 
 // New returns a factory for a fresh instance of the Nagios provider.
