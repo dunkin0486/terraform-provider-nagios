@@ -2,8 +2,10 @@ package provider
 
 import (
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 
@@ -62,4 +64,50 @@ func testAccNNAPreCheck(t *testing.T) {
 func testAccNNAClient(t *testing.T) *nna.Client {
 	t.Helper()
 	return nna.NewClient(os.Getenv("NNA_URL"), os.Getenv("NNA_API_KEY"))
+}
+
+func TestNNAClientFrom_WrongProviderDataType(t *testing.T) {
+	var diags diag.Diagnostics
+
+	got := nnaClientFrom("not-a-*providerData", &diags)
+
+	if got != nil {
+		t.Fatalf("expected nil client, got %v", got)
+	}
+	if !diags.HasError() {
+		t.Fatal("expected an error diagnostic")
+	}
+	if !strings.Contains(diags[0].Summary(), "Unexpected Resource Configure Type") {
+		t.Errorf("unexpected diagnostic summary: %s", diags[0].Summary())
+	}
+}
+
+func TestNNAClientFrom_MissingNNACredentials(t *testing.T) {
+	var diags diag.Diagnostics
+
+	got := nnaClientFrom(&providerData{XI: client.NewClient("http://example.com", "token")}, &diags)
+
+	if got != nil {
+		t.Fatalf("expected nil client, got %v", got)
+	}
+	if !diags.HasError() {
+		t.Fatal("expected an error diagnostic")
+	}
+	if !strings.Contains(diags[0].Summary(), "Missing Nagios Network Analyzer Credentials") {
+		t.Errorf("unexpected diagnostic summary: %s", diags[0].Summary())
+	}
+}
+
+func TestNNAClientFrom_ReturnsClient(t *testing.T) {
+	var diags diag.Diagnostics
+	want := nna.NewClient("http://example.com", "token")
+
+	got := nnaClientFrom(&providerData{NNA: want}, &diags)
+
+	if got != want {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+	if diags.HasError() {
+		t.Fatalf("unexpected error diagnostics: %v", diags)
+	}
 }

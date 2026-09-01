@@ -71,19 +71,11 @@ func (r *nnaSourceGroupResource) Configure(ctx context.Context, req resource.Con
 	if req.ProviderData == nil {
 		return
 	}
-	pd, ok := req.ProviderData.(*providerData)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", fmt.Sprintf("Expected *providerData, got: %T. This is a bug in the provider.", req.ProviderData))
+	nnaClient := nnaClientFrom(req.ProviderData, &resp.Diagnostics)
+	if nnaClient == nil {
 		return
 	}
-	if pd.NNA == nil {
-		resp.Diagnostics.AddError(
-			"Missing Nagios Network Analyzer Credentials",
-			"This resource requires the provider's nna_url and nna_api_key to be set (via provider config or the NNA_URL/NNA_API_KEY environment variables), since it talks to a Nagios Network Analyzer instance rather than Nagios XI.",
-		)
-		return
-	}
-	r.client = pd.NNA
+	r.client = nnaClient
 }
 
 func (r *nnaSourceGroupResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
