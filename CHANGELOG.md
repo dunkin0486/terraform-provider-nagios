@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [2.9.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.8.0...v2.9.0) (2026-09-01)
+
+
+### Features
+
+* add local-only docker-commit snapshot for nagiosxi test container ([#211](https://github.com/dunkin0486/terraform-provider-nagios/issues/211)) ([5119efc](https://github.com/dunkin0486/terraform-provider-nagios/commit/5119efc01c92cfb33d7cd8db0463876e4ef9e440))
+* add nna_source_group resource for Nagios Network Analyzer ([#204](https://github.com/dunkin0486/terraform-provider-nagios/issues/204)) ([419a7c8](https://github.com/dunkin0486/terraform-provider-nagios/commit/419a7c8ec7c866666116891de28b801480da4d82))
+* add nna_user resource for Nagios Network Analyzer ([#213](https://github.com/dunkin0486/terraform-provider-nagios/issues/213)) ([a1eed11](https://github.com/dunkin0486/terraform-provider-nagios/commit/a1eed11379b3ca89bf1c938455ec073bd993790b)), closes [#154](https://github.com/dunkin0486/terraform-provider-nagios/issues/154)
+
 ## [2.8.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.7.0...v2.8.0) (2026-08-29)
 
 
