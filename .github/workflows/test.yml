@@ -61,7 +61,13 @@ jobs:
           version: v2.12.2
       - uses: golang/govulncheck-action@v1
         with:
-          go-version-input: '1.25'
+          # Deliberately decoupled from the project's pinned go.mod version
+          # (1.25.8): govulncheck-action always `go install`s the *latest*
+          # x/vuln release, which can bump its own minimum Go requirement
+          # ahead of what this project targets (x/vuln v1.8.0 requires Go
+          # >=1.26). 'stable' keeps the toolchain used to install/run the
+          # vuln-scan tool current regardless of the project's Go version.
+          go-version-input: 'stable'
           repo-checkout: false
 
   test:
