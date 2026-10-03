@@ -3,6 +3,7 @@
 [![test](https://github.com/dunkin0486/terraform-provider-nagios/actions/workflows/test.yml/badge.svg)](https://github.com/dunkin0486/terraform-provider-nagios/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/dunkin0486/terraform-provider-nagios/branch/main/graph/badge.svg)](https://codecov.io/gh/dunkin0486/terraform-provider-nagios)
 [![Terraform Registry](https://img.shields.io/badge/terraform--registry-dunkin0486%2Fnagios-844FBA?logo=terraform)](https://registry.terraform.io/providers/dunkin0486/nagios/latest)
+[![Buy Me a Coffee](https://img.shields.io/badge/-Buy%20me%20a%20coffee-ffdd00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/cdunkin0486)
 
 Manage Nagios XI hosts, services, contacts, auth servers, and more as Terraform resources instead of clicking through the XI web UI. Nagios XI's REST API has no official Go SDK and several real quirks - every response is HTTP 200 even on failure, PUT addresses objects by their *old* name on rename, writes don't take effect until a follow-up `applyconfig` call - this provider handles them internally so your Terraform config doesn't have to.
 
