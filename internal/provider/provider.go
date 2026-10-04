@@ -180,6 +180,7 @@ func (p *nagiosProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewTimeperiodResource,
 		NewCommandResource,
 		NewNNASourceResource,
+		NewNNANmapProfileResource,
 		NewNNASourceGroupResource,
 		NewNNAUserResource,
 		NewUserResource,
