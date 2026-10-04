@@ -182,14 +182,9 @@ func (r *nnaSourceGroupResource) ImportState(ctx context.Context, req resource.I
 }
 
 func nnaSourceGroupFromModel(ctx context.Context, m *nnaSourceGroupModel) (*nna.SourceGroup, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
-	var ids []int64
-	if !m.SourceIDs.IsNull() && !m.SourceIDs.IsUnknown() {
-		diags.Append(m.SourceIDs.ElementsAs(ctx, &ids, false)...)
-		if diags.HasError() {
-			return nil, diags
-		}
+	ids, diags := int64SetToSlice(ctx, m.SourceIDs)
+	if diags.HasError() {
+		return nil, diags
 	}
 
 	refs := make([]nna.SourceRef, len(ids))
@@ -211,21 +206,16 @@ func modelFromNNASourceGroup(ctx context.Context, m *nnaSourceGroupModel, g *nna
 	m.Name = types.StringValue(g.Name)
 	m.Description = stringOrNull(g.Description)
 
-	if len(g.Sources) == 0 {
-		// Mirrors stringsToSet's null-when-empty convention (convert.go): an
-		// empty set here would otherwise permanently conflict with a plan
-		// that left source_ids unset (null), since this attribute is
-		// Optional but not Computed - confirmed live via
-		// TestAccNNASourceGroupBasic failing with "was null, but now
-		// cty.SetValEmpty" before this fix.
-		m.SourceIDs = types.SetNull(types.Int64Type)
-		return diags
-	}
 	ids := make([]int64, len(g.Sources))
 	for i, s := range g.Sources {
 		ids[i] = s.ID
 	}
-	sourceIDs, d := types.SetValueFrom(ctx, types.Int64Type, ids)
+	// int64SliceToSet handles the null-when-empty convention (confirmed live
+	// via TestAccNNASourceGroupBasic failing with "was null, but now
+	// cty.SetValEmpty" before this fix) and preserves an explicit `[]` in
+	// config rather than forcing it back to null, the same source_ids = []
+	// case nna_check's alert-recipient attributes guard against.
+	sourceIDs, d := int64SliceToSet(ctx, ids, m.SourceIDs)
 	diags.Append(d...)
 	m.SourceIDs = sourceIDs
 
