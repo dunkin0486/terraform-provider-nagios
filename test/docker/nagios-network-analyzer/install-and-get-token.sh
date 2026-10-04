@@ -40,8 +40,14 @@ if [ -z "$API_TOKEN" ]; then
     echo "#" >&2
     echo "# If this container was already installed (a previous run of this" >&2
     echo "# script, or manual UI setup), the install endpoint refuses a second" >&2
-    echo "# call - log in via POST $NNA_URL/api/v1/login with your existing" >&2
-    echo "# credentials to get a token instead." >&2
+    echo "# call. POST $NNA_URL/api/v1/login does NOT work as a plain curl" >&2
+    echo "# fallback here - confirmed live, it's session/CSRF-based (a" >&2
+    echo "# correct username/password still errors: \"Session store not set" >&2
+    echo "# on request\"). Instead, read the existing admin's apikey straight" >&2
+    echo "# out of NNA's own database:" >&2
+    echo "#   docker compose exec -T $SERVICE cat /var/www/html/nagiosna/.env | grep '^DB_'" >&2
+    echo "#   docker compose exec -T $SERVICE mysql -u <DB_USERNAME> -p'<DB_PASSWORD>' nagiosna -N \\" >&2
+    echo "#     -e \"SELECT apikey FROM users WHERE username='nagiosadmin';\"" >&2
     exit 1
 fi
 
