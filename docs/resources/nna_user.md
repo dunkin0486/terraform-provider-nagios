@@ -32,7 +32,7 @@ resource "nagios_nna_user" "analyst" {
 
 - `email` (String) The user's email address.
 - `password` (String, Sensitive) The user's password. Write-only: Network Analyzer never returns this from a GET, so it is not detected as drifted if changed outside Terraform - only an explicit config change is applied.
-- `role_id` (Number) The numeric ID of the Network Analyzer role (e.g. the built-in Admin/User roles, ids 1 and 2 on a fresh instance) that grants this user's permissions.
+- `role_id` (Number) The numeric ID of the Network Analyzer role that grants this user's permissions - either a built-in role (Admin is 1, User is 2 on a fresh instance) or `nagios_nna_role.<name>.id` for a custom role managed by this provider.
 - `username` (String) The login username. Must be unique.
 
 ### Optional
