@@ -403,6 +403,27 @@ func (r *nnaCheckResource) ImportState(ctx context.Context, req resource.ImportS
 		return
 	}
 
+	// queries can never be populated by this import (NNA never returns it -
+	// see the attribute's description), so state's queries starts null
+	// regardless of the real raw_query filter. That's silent, not just
+	// incomplete: if the written config also omits queries, the *next*
+	// apply for any reason sends the full-replace PUT with queries empty
+	// (writePayloadFor) and clears the real filter with no diff shown,
+	// since Terraform has nothing in state to compare against. Warn here,
+	// at the one point where both "a real filter exists" (existing.RawQuery)
+	// and "the config doesn't account for it" are knowable at once.
+	if existing.RawQuery != "" {
+		resp.Diagnostics.AddWarning(
+			"Imported NNA check has an unrepresentable traffic filter",
+			fmt.Sprintf(
+				"Check %d has an active filter (%q) that Network Analyzer never returns, so it cannot be imported into state. "+
+					"Add a matching `queries` block to this resource's configuration before the next apply - otherwise that apply "+
+					"(for any attribute, not just queries) will silently clear the filter, since Terraform has no state to diff it against.",
+				id, existing.RawQuery,
+			),
+		)
+	}
+
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), id)...)
 }
 
@@ -435,41 +456,6 @@ func boolToNNAActive(enabled bool) int {
 		return 1
 	}
 	return 0
-}
-
-// int64SetToSlice reads an optional set of IDs, treating null/unknown as
-// empty. Mirrors resource_nna_source_group.go's handling of source_ids.
-func int64SetToSlice(ctx context.Context, s types.Set) ([]int64, diag.Diagnostics) {
-	var diags diag.Diagnostics
-	var ids []int64
-	if !s.IsNull() && !s.IsUnknown() {
-		diags.Append(s.ElementsAs(ctx, &ids, false)...)
-	}
-	return ids, diags
-}
-
-// int64SliceToSet converts a read-back id list into a set value, defaulting
-// to null rather than an empty set the way stringsToSet does (convert.go) -
-// these four attributes are Optional but not Computed, so returning an
-// empty set where the plan held null is the permanent "was null, but now
-// cty.SetValEmpty" conflict resource_nna_source_group.go documents.
-//
-// current is the planned (Create/Update) or prior (Read) value, and it
-// settles the ambiguity the other way too: NNA reports "no recipients of
-// this kind" identically whether the config said nothing at all or said
-// `[]`, so when there are no ids the already-held value is preserved
-// as-is. Without that, a config written `alert_users = []` - the natural
-// shape when templating from a possibly-empty variable - would plan an
-// empty set, read back null, and fail the apply with the mirror-image
-// "was cty.SetValEmpty, but now null".
-func int64SliceToSet(ctx context.Context, ids []int64, current types.Set) (types.Set, diag.Diagnostics) {
-	if len(ids) == 0 {
-		if !current.IsNull() && !current.IsUnknown() && len(current.Elements()) == 0 {
-			return current, nil
-		}
-		return types.SetNull(types.Int64Type), nil
-	}
-	return types.SetValueFrom(ctx, types.Int64Type, ids)
 }
 
 func nnaCheckFromModel(ctx context.Context, m *nnaCheckModel) (*nna.Check, diag.Diagnostics) {
