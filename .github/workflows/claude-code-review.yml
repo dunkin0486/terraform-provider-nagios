@@ -1,0 +1,61 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+    # Skip entirely when every changed file matches one of these -- docs/markdown
+    # content and generated API reference, not provider behavior. Deliberately does
+    # NOT ignore .github/workflows/**, go.mod/go.sum, or other build/release/lint
+    # config (.golangci.yml, .goreleaser.yml, codecov.yml, dependabot.yml, etc.) --
+    # those affect CI execution and supply-chain posture and should still be
+    # reviewed even though some are also YAML.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@cab360f6565aa35a51d6ce9e43f1f4287c0a32ea # v1
+        with:
+          # Draws on the repo owner's Claude subscription (via `claude setup-token`)
+          # rather than separate pay-per-token API billing. Requires the
+          # CLAUDE_CODE_OAUTH_TOKEN repo secret to be set -- see CONTRIBUTING.md.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          prompt: |
+            Run /code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}
+
+            Then, separately, do a focused security review of the same pull request:
+
+            1. Fetch the full diff with `gh pr diff ${{ github.event.pull_request.number }}`.
+            2. Look specifically for: injection (command/SQL/template), authn/authz bypass or IDOR,
+               SSRF, secrets or credentials logged/committed/sent in plaintext where avoidable,
+               insecure defaults, and -- since this repo ships a Terraform provider and its own
+               CI -- supply-chain risk in any changed `.github/workflows/**`, `go.mod`/`go.sum`,
+               or release/build config (unpinned actions, widened permissions, new third-party
+               actions, dependency changes).
+            3. Hold findings to the same confidence bar as the code review above (skip
+               pre-existing issues, nitpicks, and anything a linter/typechecker/CI would already
+               catch). If nothing clears that bar, post nothing beyond a short "no security
+               issues found" note.
+            4. Post any findings as a second PR comment (or inline comments on the flagged
+               lines), clearly labeled "### Security review", using
+               `gh pr comment ${{ github.event.pull_request.number }} --body "..."` -- keep the
+               same citation style as the code review (link file + line with the full commit SHA).
+          claude_args: >-
+            --allowedTools "Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh pr view:*),mcp__github_inline_comment__create_inline_comment"
