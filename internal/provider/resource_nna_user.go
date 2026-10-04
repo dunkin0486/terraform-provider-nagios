@@ -85,7 +85,7 @@ func (r *nnaUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"role_id": schema.Int64Attribute{
 				Required:    true,
-				Description: "The numeric ID of the Network Analyzer role (e.g. the built-in Admin/User roles, ids 1 and 2 on a fresh instance) that grants this user's permissions.",
+				Description: "The numeric ID of the Network Analyzer role that grants this user's permissions - either a built-in role (Admin is 1, User is 2 on a fresh instance) or `nagios_nna_role.<name>.id` for a custom role managed by this provider.",
 			},
 			"apiaccess": schema.BoolAttribute{
 				Optional:    true,

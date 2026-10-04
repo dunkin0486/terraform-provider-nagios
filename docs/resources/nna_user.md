@@ -32,20 +32,20 @@ resource "nagios_nna_user" "analyst" {
 
 - `email` (String) The user's email address.
 - `password` (String, Sensitive) The user's password. Write-only: Network Analyzer never returns this from a GET, so it is not detected as drifted if changed outside Terraform - only an explicit config change is applied.
-- `role_id` (Number) The numeric ID of the Network Analyzer role (e.g. the built-in Admin/User roles, ids 1 and 2 on a fresh instance) that grants this user's permissions.
+- `role_id` (Number) The numeric ID of the Network Analyzer role that grants this user's permissions - either a built-in role (Admin is 1, User is 2 on a fresh instance) or `nagios_nna_role.<name>.id` for a custom role managed by this provider.
 - `username` (String) The login username. Must be unique.
 
 ### Optional
 
 - `active` (Boolean) Whether this user account is active. A disabled (inactive) user cannot log in.
 - `apiaccess` (Boolean) Whether this user's apikey (see the computed apikey attribute) may be used to authenticate API requests.
-- `auth_server_id` (Number) The numeric ID of the Network Analyzer auth server this user authenticates against, for a non-local account. Omit for a local account.
-- `company` (String) The user's company.
-- `first_name` (String) The user's first name.
+- `auth_server_id` (Number) The numeric ID of the Network Analyzer auth server this user authenticates against, for a non-local account. Omit for a local account. Likely shares first_name's clear-forces-replace behavior (inferred, not separately confirmed live: it's nullable through the identical PATCH partial-update code path) - removing it from config after it's been set forces a replace.
+- `company` (String) The user's company. Same clear-forces-replace behavior as first_name - see its description.
+- `first_name` (String) The user's first name. Once set, cannot be cleared back to unset through an update - confirmed live (#154), Network Analyzer's PATCH endpoint silently ignores an attempt to clear it (sending "", null, or omitting the key all leave the prior value in place). Removing this attribute from config after it's been set forces a replace (destroy+recreate) instead of a no-op update.
 - `force_password_reset` (Boolean) Forces the user to change their password at next login.
 - `lang` (String) The user's language/locale, e.g. "en_US". Confirmed live: sending a bare language code like "en" is accepted but normalizes server-side to its full locale form ("en_US") on read-back, which would otherwise show as a permanent diff - always use the full locale form here.
-- `last_name` (String) The user's last name.
-- `phone` (String) The user's phone number.
+- `last_name` (String) The user's last name. Same clear-forces-replace behavior as first_name - see its description.
+- `phone` (String) The user's phone number. Same clear-forces-replace behavior as first_name - see its description.
 - `theme` (String) The UI theme for this user.
 - `type` (String) The account type, e.g. "Local" for a standalone account with its own password.
 
