@@ -35,6 +35,13 @@ jobs:
           # rather than separate pay-per-token API billing. Requires the
           # CLAUDE_CODE_OAUTH_TOKEN repo secret to be set -- see CONTRIBUTING.md.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # release-please's version-bump PR (github-actions[bot]) is a required
+          # check away from being unmergeable otherwise: the action refuses to run
+          # for any non-human actor unless explicitly allow-listed (#239). Scoped to
+          # just this bot, not '*' and not dependabot -- Dependabot PRs change
+          # go.mod/go.sum and should still go through review for supply-chain risk,
+          # per this workflow's own prompt below.
+          allowed_bots: 'github-actions'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: |
