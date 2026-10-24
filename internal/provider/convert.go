@@ -110,3 +110,40 @@ func boolToNagios(v types.Bool) string {
 func nagiosToBool(v string) types.Bool {
 	return types.BoolValue(v == "1")
 }
+
+// int64SetToSlice reads an optional set of IDs, treating null/unknown as
+// empty. Used by the nna_* resources that reference other objects by a set
+// of numeric ids (e.g. nna_check's four alert-recipient attributes,
+// nna_source_group's source_ids).
+func int64SetToSlice(ctx context.Context, s types.Set) ([]int64, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	var ids []int64
+	if !s.IsNull() && !s.IsUnknown() {
+		diags.Append(s.ElementsAs(ctx, &ids, false)...)
+	}
+	return ids, diags
+}
+
+// int64SliceToSet converts a read-back id list into a set value, defaulting
+// to null rather than an empty set the way stringsToSet does - these
+// attributes are Optional but not Computed, so returning an empty set where
+// the plan held null is a permanent "was null, but now cty.SetValEmpty"
+// conflict (confirmed live via nna_source_group and nna_check acceptance
+// tests failing exactly that way before this helper existed).
+//
+// current is the planned (Create/Update) or prior (Read) value, and it
+// settles the ambiguity the other way too: NNA reports "none of this kind"
+// identically whether the config said nothing at all or said `[]`, so when
+// there are no ids the already-held value is preserved as-is. Without that,
+// a config written `some_ids = []` - the natural shape when templating from
+// a possibly-empty variable - would plan an empty set, read back null, and
+// fail the apply with the mirror-image "was cty.SetValEmpty, but now null".
+func int64SliceToSet(ctx context.Context, ids []int64, current types.Set) (types.Set, diag.Diagnostics) {
+	if len(ids) == 0 {
+		if !current.IsNull() && !current.IsUnknown() && len(current.Elements()) == 0 {
+			return current, nil
+		}
+		return types.SetNull(types.Int64Type), nil
+	}
+	return types.SetValueFrom(ctx, types.Int64Type, ids)
+}
