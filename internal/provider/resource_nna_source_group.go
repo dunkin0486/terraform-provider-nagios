@@ -56,7 +56,7 @@ func (r *nnaSourceGroupResource) Schema(ctx context.Context, req resource.Schema
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,
-				Description: "A human-readable description of this source group.",
+				Description: "A human-readable description of this source group. Network Analyzer stores an empty description as null and cannot distinguish it from an unset one, so either form means \"no description\" - whichever you configure is what stays in state.",
 			},
 			"source_ids": schema.SetAttribute{
 				Optional:    true,
@@ -199,12 +199,22 @@ func nnaSourceGroupFromModel(ctx context.Context, m *nnaSourceGroupModel) (*nna.
 	}, diags
 }
 
+// modelFromNNASourceGroup writes g back over m. m carries the plan (in
+// Create/Update) or the prior state (in Read), and for Description that is
+// load bearing: Network Analyzer collapses "empty" and "unset" into one
+// stored value (confirmed live via TestAccNNASourceGroupExplicitEmptyDescription
+// failing with "was cty.StringVal(\"\"), but now null" before this fix),
+// while Terraform treats `description = ""` and an omitted attribute as
+// genuinely different planned values. description is Optional but not
+// Computed, so writing back the server's collapsed form unconditionally
+// would fail the apply outright with "Provider produced inconsistent
+// result after apply" - see emptyPreservingString (#228).
 func modelFromNNASourceGroup(ctx context.Context, m *nnaSourceGroupModel, g *nna.SourceGroup) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	m.ID = types.Int64Value(g.ID)
 	m.Name = types.StringValue(g.Name)
-	m.Description = stringOrNull(g.Description)
+	m.Description = emptyPreservingString(m.Description, g.Description)
 
 	ids := make([]int64, len(g.Sources))
 	for i, s := range g.Sources {

@@ -37,7 +37,7 @@ resource "nagios_nna_source_group" "example" {
 
 ### Optional
 
-- `description` (String) A human-readable description of this source group.
+- `description` (String) A human-readable description of this source group. Network Analyzer stores an empty description as null and cannot distinguish it from an unset one, so either form means "no description" - whichever you configure is what stays in state.
 - `source_ids` (Set of Number) The numeric IDs of the nagios_nna_source sources that belong to this group.
 
 ### Read-Only
