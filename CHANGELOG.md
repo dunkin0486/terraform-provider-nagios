@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## [2.10.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.9.0...v2.10.0) (2026-10-24)
+
+
+### Features
+
+* add nna_check resource for Nagios Network Analyzer ([#229](https://github.com/dunkin0486/terraform-provider-nagios/issues/229)) ([16f5fd0](https://github.com/dunkin0486/terraform-provider-nagios/commit/16f5fd08b46916ef61b204d4c2ed76f2e182b48b))
+* add nna_nmap_profile resource for Nagios Network Analyzer ([#231](https://github.com/dunkin0486/terraform-provider-nagios/issues/231)) ([64ad567](https://github.com/dunkin0486/terraform-provider-nagios/commit/64ad567238427d8d6b5ff97a10e471a3a5de5e33)), closes [#158](https://github.com/dunkin0486/terraform-provider-nagios/issues/158)
+* add nna_role resource for Nagios Network Analyzer ([#230](https://github.com/dunkin0486/terraform-provider-nagios/issues/230)) ([ad758ee](https://github.com/dunkin0486/terraform-provider-nagios/commit/ad758ee5d887f9f553e50db75a1ad8abf67763d9))
+
+
+### Bug Fixes
+
+* allow release-please's bot PR through claude-code-review ([#240](https://github.com/dunkin0486/terraform-provider-nagios/issues/240)) ([e85bccd](https://github.com/dunkin0486/terraform-provider-nagios/commit/e85bccd52c8e54397e59b02d9e3310670676e0aa)), closes [#239](https://github.com/dunkin0486/terraform-provider-nagios/issues/239)
+* bump stale xi-latest.tar.gz checksum pin to 2026R2 ([#238](https://github.com/dunkin0486/terraform-provider-nagios/issues/238)) ([dc32eb1](https://github.com/dunkin0486/terraform-provider-nagios/commit/dc32eb1b58151414fac4c05130beaf2565cd07c8)), closes [#233](https://github.com/dunkin0486/terraform-provider-nagios/issues/233)
+* nna_source_group.description empty-string round-trip bug ([#237](https://github.com/dunkin0486/terraform-provider-nagios/issues/237)) ([96e3cb9](https://github.com/dunkin0486/terraform-provider-nagios/commit/96e3cb9022cf5a338e3ff94959662a33cb5465cf)), closes [#228](https://github.com/dunkin0486/terraform-provider-nagios/issues/228)
+
 ## [2.9.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.8.0...v2.9.0) (2026-09-01)
 
 
