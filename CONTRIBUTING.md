@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Go 1.25+
+- Go 1.26+
 - [Terraform](https://developer.hashicorp.com/terraform/install) (for acceptance tests, which drive the real `terraform` binary against the compiled provider)
 - Docker, for the local Nagios XI test instance
 
