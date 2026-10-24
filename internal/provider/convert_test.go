@@ -184,6 +184,36 @@ func TestStringOrNull(t *testing.T) {
 	}
 }
 
+// TestEmptyPreservingString covers the empty-vs-null ambiguity shared by
+// nna_nmap_profile.description and nna_source_group.description (#228).
+// Network Analyzer cannot report "" and unset as distinct, so whichever
+// the configuration chose has to survive the round trip or the apply
+// fails with "Provider produced inconsistent result after apply".
+func TestEmptyPreservingString(t *testing.T) {
+	tests := []struct {
+		name        string
+		planned     types.String
+		serverValue string
+		want        types.String
+	}{
+		{"server value wins over null plan", types.StringNull(), "from server", types.StringValue("from server")},
+		{"server value wins over empty plan", types.StringValue(""), "from server", types.StringValue("from server")},
+		{"explicit empty plan is preserved", types.StringValue(""), "", types.StringValue("")},
+		{"null plan stays null", types.StringNull(), "", types.StringNull()},
+		{"unknown plan collapses to null", types.StringUnknown(), "", types.StringNull()},
+		{"populated plan cleared server-side goes null", types.StringValue("old"), "", types.StringNull()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := emptyPreservingString(tt.planned, tt.serverValue)
+			if !got.Equal(tt.want) {
+				t.Errorf("emptyPreservingString(%v, %q) = %v, want %v", tt.planned, tt.serverValue, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestOptionalBoolToNagios covers the historically-shipped bug this function
 // exists to fix: reading Go's bool zero-value for an unset optional silently
 // sent Nagios "0", indistinguishable from an explicit false. Null/unknown

@@ -43,36 +43,8 @@ func TestNNANmapProfileFromModel(t *testing.T) {
 	}
 }
 
-// TestEmptyPreservingString covers the empty-vs-null ambiguity on
-// description. Network Analyzer cannot report "" and unset as distinct, so
-// whichever the configuration chose has to survive the round trip or the
-// apply fails with "Provider produced inconsistent result after apply".
-func TestEmptyPreservingString(t *testing.T) {
-	tests := []struct {
-		name        string
-		planned     types.String
-		serverValue string
-		want        types.String
-	}{
-		{"server value wins over null plan", types.StringNull(), "from server", types.StringValue("from server")},
-		{"server value wins over empty plan", types.StringValue(""), "from server", types.StringValue("from server")},
-		{"explicit empty plan is preserved", types.StringValue(""), "", types.StringValue("")},
-		{"null plan stays null", types.StringNull(), "", types.StringNull()},
-		{"unknown plan collapses to null", types.StringUnknown(), "", types.StringNull()},
-		{"populated plan cleared server-side goes null", types.StringValue("old"), "", types.StringNull()},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := emptyPreservingString(tt.planned, tt.serverValue)
-			if !got.Equal(tt.want) {
-				t.Errorf("emptyPreservingString(%v, %q) = %v, want %v", tt.planned, tt.serverValue, got, tt.want)
-			}
-		})
-	}
-}
-
-// TestEmptyPreservingSet is the tags counterpart to the test above.
+// TestEmptyPreservingSet is the tags counterpart to convert_test.go's
+// TestEmptyPreservingString.
 func TestEmptyPreservingSet(t *testing.T) {
 	ctx := context.Background()
 	populated, _ := types.SetValueFrom(ctx, types.StringType, []string{"Quick"})

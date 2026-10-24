@@ -64,6 +64,79 @@ func TestAccNNASourceGroupUpdateDescription(t *testing.T) {
 	})
 }
 
+// TestAccNNASourceGroupExplicitEmptyDescription is the regression test for
+// the empty-vs-unset ambiguity (#228): Network Analyzer collapses an empty
+// description and an unset one into the same stored value, but Terraform
+// plans `description = ""` as a known, non-null value. description is
+// Optional but not Computed, so if the provider normalized the server's
+// collapsed "" into null, the apply would abort with "Provider produced
+// inconsistent result after apply" - this asserts the explicit empty form
+// applies cleanly and survives a second plan with no diff.
+func TestAccNNASourceGroupExplicitEmptyDescription(t *testing.T) {
+	name := "tf_" + acctest.RandString(10)
+	rName := "nagios_nna_source_group.group"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccNNAPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckNNASourceGroupDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccNNASourceGroupResourceBasic(name, ""),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckNNASourceGroupExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "description", ""),
+				),
+			},
+			{
+				// A no-op re-apply: if the explicit empty description was
+				// being rewritten to null in state, this step would show a
+				// diff.
+				Config:   testAccNNASourceGroupResourceBasic(name, ""),
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+// TestAccNNASourceGroupExplicitEmptyToPopulated confirms the explicit-empty
+// description is a real starting point for an update, not just a stable
+// end state - going from "" to a populated value and back exercises both
+// directions through the same PUT.
+func TestAccNNASourceGroupExplicitEmptyToPopulated(t *testing.T) {
+	name := "tf_" + acctest.RandString(10)
+	rName := "nagios_nna_source_group.group"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccNNAPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckNNASourceGroupDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccNNASourceGroupResourceBasic(name, ""),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckNNASourceGroupExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "description", ""),
+				),
+			},
+			{
+				Config: testAccNNASourceGroupResourceBasic(name, "created by acceptance tests"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckNNASourceGroupExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "description", "created by acceptance tests"),
+				),
+			},
+			{
+				Config: testAccNNASourceGroupResourceBasic(name, ""),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckNNASourceGroupExists(t, rName),
+					resource.TestCheckResourceAttr(rName, "description", ""),
+				),
+			},
+		},
+	})
+}
+
 // TestAccNNASourceGroupWithSource confirms source_ids attaches a
 // nagios_nna_source to the group and that removing it from the set detaches
 // it on the next apply.
