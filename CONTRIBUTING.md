@@ -76,6 +76,16 @@ This means the PR title/squash-commit message you merge to `main` needs a Conven
 
 A commit/PR title without one of these prefixes won't be picked up by release-please as release-worthy.
 
+## Automated PR review (maintainers)
+
+`.github/workflows/claude-code-review.yml` runs Claude's code review and a focused security review on PRs that touch code (skipped when every changed file is `**/*.md` or under `docs/**`). It authenticates via the `CLAUDE_CODE_OAUTH_TOKEN` repo secret, generated with `claude setup-token` and set with:
+
+```bash
+gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo dunkin0486/terraform-provider-nagios
+```
+
+PRs from forks (i.e. anyone without write access) require a maintainer to manually approve the workflow run before it executes - configured under repo **Settings → Actions → General → Fork pull request workflows from outside collaborators → Require approval for all outside collaborators**. PRs from branches within this repo run automatically.
+
 ## Pull requests
 
 - **Run the acceptance test suite before opening a PR** (see Testing above) if your change touches `internal/client` or `internal/provider` at all. CI only runs unit tests and lint - it does not boot the Docker Nagios instance or set `TF_ACC`, so acceptance failures will not be caught automatically. This is not optional for resource/client changes: several real bugs in this provider (the `getX`-never-returns-nil bug, the `free_variables` round-trip bug, the `2d_coords`/`3d_coords` invalid-attribute-name bug) were only ever caught by actually running the suite against a live instance, not by build/vet/unit tests.
