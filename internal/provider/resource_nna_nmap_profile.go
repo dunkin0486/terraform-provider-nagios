@@ -277,34 +277,6 @@ func modelFromNNANmapProfile(ctx context.Context, m *nnaNmapProfileModel, p *nna
 	m.TimesRan = types.Int64Value(p.TimesRan)
 }
 
-// emptyPreservingString resolves the empty-string/null ambiguity for
-// description. Network Analyzer stores an empty description as null and
-// returns it as "" either way (confirmed live), so the server can never
-// distinguish the two - but Terraform can, and a config that explicitly
-// sets `description = ""` plans a known "" that must still be "" in state
-// afterward. When the server reports empty, the planned/prior form wins;
-// any non-empty server value always wins, so genuine external edits are
-// still picked up on Read.
-//
-// Note a non-empty planned value against an empty server value
-// deliberately becomes null rather than being preserved. On Read that's
-// drift detection working as intended. On Create/Update it would abort the
-// apply with an inconsistent-result error - which is the right outcome,
-// because reaching it means Network Analyzer accepted the write and then
-// reported the description as empty anyway. Confirmed live that it echoes
-// description back on both POST and PUT, so that only happens if the API
-// genuinely dropped the value, and failing loudly beats silently
-// pretending the write stuck.
-func emptyPreservingString(planned types.String, serverValue string) types.String {
-	if serverValue != "" {
-		return types.StringValue(serverValue)
-	}
-	if !planned.IsNull() && !planned.IsUnknown() && planned.ValueString() == "" {
-		return planned
-	}
-	return types.StringNull()
-}
-
 // emptyPreservingSet is emptyPreservingString's counterpart for tags, and
 // exists for the same reason: stringsToSet maps any zero-length slice to a
 // null set, which silently rewrites an explicitly configured `tags = []`

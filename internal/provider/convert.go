@@ -68,6 +68,41 @@ func stringOrNull(v string) types.String {
 	return types.StringValue(v)
 }
 
+// emptyPreservingString resolves the empty-string/null ambiguity seen on
+// Network Analyzer's nna_nmap_profile.description and
+// nna_source_group.description: NNA stores an empty value as null and
+// returns both as "" on read (confirmed live for both resources), so the
+// server can never distinguish the two - but Terraform can, and a config
+// that explicitly sets `description = ""` plans a known "" that must still
+// be "" in state afterward. Since description is Optional but not
+// Computed on either resource, writing back the server's collapsed form
+// unconditionally would abort the apply with "Provider produced
+// inconsistent result after apply" (confirmed live via
+// TestAccNNANmapProfileExplicitEmptyOptionals and
+// TestAccNNASourceGroupExplicitEmptyDescription before this helper
+// existed/was reused - see #228). So when the server reports a field as
+// empty, planned is a caller-supplied types.String carrying the plan
+// (Create/Update) or prior state (Read) and wins instead; any non-empty
+// server value always wins, so genuine external edits are still picked up
+// on Read.
+//
+// Note a non-empty planned value against an empty server value
+// deliberately becomes null rather than being preserved. On Read that's
+// drift detection working as intended. On Create/Update it would abort the
+// apply with an inconsistent-result error - which is the right outcome,
+// because reaching it means the API accepted the write and then reported
+// the field as empty anyway, which only happens if it genuinely dropped
+// the value - failing loudly beats silently pretending the write stuck.
+func emptyPreservingString(planned types.String, serverValue string) types.String {
+	if serverValue != "" {
+		return types.StringValue(serverValue)
+	}
+	if !planned.IsNull() && !planned.IsUnknown() && planned.ValueString() == "" {
+		return planned
+	}
+	return types.StringNull()
+}
+
 // optionalBoolToNagios converts a types.Bool to Nagios's "0"/"1" string
 // convention, but only when the value is explicitly set. A null/unknown bool
 // (the attribute was never set in HCL) is omitted entirely so Nagios applies
