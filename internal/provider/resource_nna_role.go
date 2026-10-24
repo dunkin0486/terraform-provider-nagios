@@ -461,21 +461,26 @@ func modelFromNNARole(ctx context.Context, m *nnaRoleModel, r *nna.Role) diag.Di
 	// traceroute_permissions is Required in the schema, so writing a null
 	// here would surface as an opaque framework "inconsistent state" error
 	// rather than something actionable. Its column is NOT NULL server-side,
-	// which should make this unreachable - but decodePermissions does yield
-	// nil for an absent key, so a future Network Analyzer version dropping
-	// the field would land here. Report it plainly instead.
-	m.TraceroutePermissions = nil
-	if p := r.TraceroutePermissions; p != nil {
-		m.TraceroutePermissions = &nnaRoleTracerouteModel{
-			NCPAHost:       verbs(p.NCPAHost),
-			Traceroutes:    verbs(p.Traceroutes),
-			ScheduledScans: verbs(p.ScheduledScans),
-		}
-	} else {
-		diags.AddError(
-			"Missing traceroute_permissions in NNA role response",
-			fmt.Sprintf("Network Analyzer returned no traceroute_permissions for role id %d. This attribute is required and is stored in a NOT NULL column, so this likely indicates an incompatible Network Analyzer version.", r.ID),
-		)
+	// so a genuinely absent key would mean an incompatible Network Analyzer
+	// version - but decodePermissions (internal/client/nna/role.go) also
+	// yields nil for a group whose JSON doesn't unmarshal into
+	// TraceroutePermissions, e.g. {"ncpa_host":"notanarray"} written by some
+	// other client. NNA performs no shape validation and stores that
+	// verbatim, so it's a reachable state, not just a version mismatch.
+	// Treat nil the same as the empty-group case rather than erroring: an
+	// error here would permanently fail every plan/apply/refresh for the
+	// role (ListRoles has no way to tell "field missing" from "field
+	// malformed" apart after decodePermissions, by design - see its doc
+	// comment), whereas defaulting to an empty block lets the next apply
+	// rewrite the group to what the config actually wants.
+	p := r.TraceroutePermissions
+	if p == nil {
+		p = &nna.TraceroutePermissions{}
+	}
+	m.TraceroutePermissions = &nnaRoleTracerouteModel{
+		NCPAHost:       verbs(p.NCPAHost),
+		Traceroutes:    verbs(p.Traceroutes),
+		ScheduledScans: verbs(p.ScheduledScans),
 	}
 
 	m.SuricataPermissions = nil
