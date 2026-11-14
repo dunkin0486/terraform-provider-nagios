@@ -41,7 +41,6 @@ var (
 	// extra options), and newlines would split the rule across lines.
 	suricataValuePattern = regexp.MustCompile(`^[^;"\\\r\n]+$`)
 	suricataKeyPattern   = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_.\-]*$`)
-	suricataReservedKey  = regexp.MustCompile(`^(?:msg|sid)$`)
 )
 
 const suricataValueMessage = "must not be empty or contain ';', '\"', '\\' or newlines (Network Analyzer does not escape them, so they would corrupt the rule)"
