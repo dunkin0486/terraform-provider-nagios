@@ -32,6 +32,22 @@ Unlike `nagiosxi`'s `fullinstall` (which seeds an admin account and API key that
 
 `docker-compose.yml` names a private GHCR package (`ghcr.io/dunkin0486/terraform-provider-nagios-test-nna`) so `docker compose up` can pull a prebuilt image instead of rebuilding - see `test/docker/nagiosxi/README.md`'s "Speeding up local runs with a prebuilt image" for the one-time setup steps (PAT, `docker login ghcr.io`, `./build-and-push.sh`, then confirming the package is **Private**). Same mechanics here; the only difference is the package name. NNA's own build is a few minutes rather than nagiosxi's ~50, so this matters less here, but it's still one less thing to wait on when iterating on `nna_*` resources.
 
+## Suricata (for `nna_suricata_rule` / `nna_suricata_ruleset`, #159/#160)
+
+NNA's `suricata/*` API endpoints are unusable without a real Suricata install on the box, so the image includes one (#248). Without it (confirmed live): `GET suricata/rules` returns 500 (no `suricata_config` row), `POST suricata/rulesets` returns 500 `Failed to add ruleset to suricata-update.`, `GET suricata/rulesets` returns `[]`, and `GET suricata/config/version` returns `None`.
+
+- **Build time (Dockerfile)**: reproduces NNA's own UI install page (`ui/src/components/suricata/SuricataInstall.tsx`) - build deps, download `suricata-8.0.3.tar.gz` (pinned via `SURICATA_VERSION`, sha256 verified via `SURICATA_SHA256`), `configure`/`make`/`make install-full`, `ldconfig`, `suricata-update update-sources`. The checksum is self-recorded (OISF only publishes a detached GPG signature), same caveat as the NNA/XI tarballs. This adds a few minutes (compiling Suricata, including its Rust components) to a cold `docker build`; it is its own layer, so it is cached afterwards.
+- **First boot (`nna-suricata-setup.service`, after `nna-install.service`)**: `nna-suricata-setup.sh` runs `canonicalize_eve_types.py` and applies the permissions block from that same UI page (the `nna` user and `nnacmd` group only exist after `fullinstall`), ensures the `suricata_config` row exists, runs NNA's own `SuricataRulesetSeeder` against the `suricata-update` index, and sets `rulesets_seeded`.
+
+Skipped from the UI's script on purpose: the `readsuricata` systemd unit and logrotate config - nothing here runs Suricata against live traffic or ingests `eve.json`.
+
+Behaviors worth knowing when writing acceptance tests (verified live):
+
+- `GET suricata/config` 500s with `Undefined array key "enabled"` unless `canonicalize_eve_types.py` has rewritten `suricata.yaml` first.
+- `GET suricata/rules` requires `page` and `pageSize` query parameters, otherwise 500 `Undefined array key "page"`/`"pageSize"`.
+- `POST suricata/rulesets` requires `enabled` in addition to `name`/`url`, otherwise 500 `Undefined array key "enabled"` - and the ruleset row is created before that error, so a retry gets 422 `Ruleset '<name>' already exists.`
+- Custom rulesets are created with `"type": "Custom"`.
+
 ## Fixes applied (in case your environment hits something different)
 
 The Dockerfile/service unit were written by adapting `test/docker/nagiosxi/`'s already-proven Rocky Linux 9 base and workarounds to NNA's own installer (`fullinstall`, `libinstall.sh`), then actually running it. Two of the five issues found are identical to XI's own documented fixes; three are new to NNA:
