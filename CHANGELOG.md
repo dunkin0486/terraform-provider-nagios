@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## [2.11.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.10.0...v2.11.0) (2026-11-14)
+
+
+### Features
+
+* add nagios_nna_nmap_scan resource for Nagios Network Analyzer ([#247](https://github.com/dunkin0486/terraform-provider-nagios/issues/247)) ([92016ad](https://github.com/dunkin0486/terraform-provider-nagios/commit/92016adbc33b58caf0154efd7df442e82f5014e1)), closes [#157](https://github.com/dunkin0486/terraform-provider-nagios/issues/157)
+* add nagios_nna_suricata_rule resource for Nagios Network Analyzer ([#250](https://github.com/dunkin0486/terraform-provider-nagios/issues/250)) ([228a682](https://github.com/dunkin0486/terraform-provider-nagios/commit/228a6822a332793003fe1d30449aa8874dd45aa7))
+* add nagios_nna_suricata_ruleset resource for Nagios Network Analyzer ([#251](https://github.com/dunkin0486/terraform-provider-nagios/issues/251)) ([ee9f38d](https://github.com/dunkin0486/terraform-provider-nagios/commit/ee9f38d6a7d56249f20da0c5b83cf476c1c83c56))
+* support nmap/suricata/system check types on nagios_nna_check ([#245](https://github.com/dunkin0486/terraform-provider-nagios/issues/245)) ([dfee5bc](https://github.com/dunkin0486/terraform-provider-nagios/commit/dfee5bc0115b21128492b0714a57beea17f919dd))
+
 ## [2.10.0](https://github.com/dunkin0486/terraform-provider-nagios/compare/v2.9.0...v2.10.0) (2026-10-24)
 
 
