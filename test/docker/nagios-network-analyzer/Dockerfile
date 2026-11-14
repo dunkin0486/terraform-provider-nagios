@@ -87,10 +87,53 @@ RUN mkdir -p /etc/systemd/system/php-fpm.service.d \
         'ExecStartPre=/usr/bin/sed -i -e '"'"'s/^listen\.acl_users/;&/'"'"' -e '"'"'s/^;listen\.owner = nobody/listen.owner = apache/'"'"' -e '"'"'s/^;listen\.group = nobody/listen.group = apache/'"'"' /etc/php-fpm.d/www.conf' \
         > /etc/systemd/system/php-fpm.service.d/override.conf
 
+# Suricata, built from source the same way NNA's own UI install page
+# (ui/src/components/suricata/SuricataInstall.tsx) tells an operator to
+# (build deps -> configure -> make -> make install-full -> ldconfig ->
+# suricata-update update-sources), pinned to the exact release that page
+# ships. Without it NNA's suricata/* API endpoints are unusable (confirmed
+# live, #248): GET suricata/rules 500s, POST suricata/rulesets 500s with
+# "Failed to add ruleset to suricata-update.", GET suricata/rulesets is [],
+# suricata/config/version is None.
+#
+# Done at image build time (not first boot) so the compile is cached as its
+# own layer. The nna/nnacmd account and the Suricata-facing DB rows only
+# exist after NNA's fullinstall runs, so ownership/permissions and seeding
+# are deferred to nna-suricata-setup.service (see nna-suricata-setup.sh).
+#
+# Same lack of an upstream-published checksum as the other tarballs here:
+# OISF only publishes a detached GPG .sig, so this sha256 is self-recorded
+# against 8.0.3 to catch an unexpected content change, not for provenance.
+ARG SURICATA_VERSION=8.0.3
+ARG SURICATA_SHA256=3d9a7b803b97c11e060f3349b179beaafd6f96b8c8a95085d9fdc08c822817d9
+RUN dnf -y install gcc gcc-c++ make autoconf automake libtool pkgconf-pkg-config \
+        pcre2-devel libyaml-devel jansson-devel libpcap-devel rustc cargo \
+        libcap-ng-devel libunwind-devel file-devel lz4-devel zlib-devel \
+        python3-yaml python3-ruamel-yaml acl libcap \
+    && dnf clean all \
+    && mkdir /usr/local/src/suricata-build \
+    && cd /usr/local/src/suricata-build \
+    && wget -q "https://www.openinfosecfoundation.org/download/suricata-${SURICATA_VERSION}.tar.gz" \
+    && echo "${SURICATA_SHA256}  suricata-${SURICATA_VERSION}.tar.gz" | sha256sum -c - \
+    && tar xzf "suricata-${SURICATA_VERSION}.tar.gz" \
+    && cd "suricata-${SURICATA_VERSION}" \
+    && ./configure \
+    && make -j"$(nproc)" \
+    && make install-full \
+    && ldconfig \
+    && /usr/local/bin/suricata-update update-sources \
+    && cd / && rm -rf /usr/local/src/suricata-build
+
 COPY nna-install.service /etc/systemd/system/nna-install.service
 RUN mkdir -p /etc/systemd/system/multi-user.target.wants \
     && ln -sf /etc/systemd/system/nna-install.service \
         /etc/systemd/system/multi-user.target.wants/nna-install.service
+
+COPY nna-suricata-setup.sh /usr/local/sbin/nna-suricata-setup.sh
+COPY nna-suricata-setup.service /etc/systemd/system/nna-suricata-setup.service
+RUN chmod 755 /usr/local/sbin/nna-suricata-setup.sh \
+    && ln -sf /etc/systemd/system/nna-suricata-setup.service \
+        /etc/systemd/system/multi-user.target.wants/nna-suricata-setup.service
 
 EXPOSE 80 443
 

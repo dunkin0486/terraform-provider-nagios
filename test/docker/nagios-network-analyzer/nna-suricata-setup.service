@@ -1,0 +1,19 @@
+[Unit]
+Description=Wire the build-time Suricata install into NNA (permissions, config row, ruleset seed)
+# fullinstall creates the nna user/nnacmd group and the NNA database this
+# depends on.
+After=nna-install.service
+Requires=nna-install.service
+ConditionPathExists=!/var/lib/nagiosna/.suricata-configured
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/nna-suricata-setup.sh
+ExecStartPost=/bin/touch /var/lib/nagiosna/.suricata-configured
+TimeoutStartSec=0
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
