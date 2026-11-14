@@ -91,13 +91,19 @@ resource "nagios_nna_check" "ssh_scan_alerts" {
   check_frequency    = "Hourly"
 }
 
-# Alert when an nmap scheduled scan finds too many open ports. object_id is the
-# scan's ID inside Network Analyzer.
+resource "nagios_nna_nmap_scan" "dmz" {
+  name                = "dmz-nightly"
+  parameters          = "-sS -T4 -F -e eth0 10.20.0.0/24"
+  schedule_type       = "dailyAt"
+  schedule_parameters = { time = "02:00" }
+}
+
+# Alert when an nmap scheduled scan finds too many open ports.
 resource "nagios_nna_check" "dmz_open_ports" {
   name        = "dmz-open-ports"
   check_type  = "nmap"
   object_type = "scheduled_scan"
-  object_id   = 3
+  object_id   = nagios_nna_nmap_scan.dmz.id
   metric      = "ports_open"
 
   warning_threshold  = "20"
@@ -125,7 +131,7 @@ resource "nagios_nna_check" "dmz_open_ports" {
 - `critical_threshold` (String) The critical threshold, in Nagios range syntax. Same conventions as `warning_threshold`.
 - `enabled` (Boolean) Whether this check is actively evaluated. A newly created check always starts enabled, since Network Analyzer ignores this on create; set to false to have Terraform disable it immediately afterwards.
 - `lookback_period` (String) How far back a `suricata` check counts alerts: `1d`, `7d`, `30d`, `90d`, `180d` or `365d`. Required for `suricata` checks and invalid for every other type.
-- `object_id` (Number) The ID of the object this check evaluates: a `nagios_nna_source` or `nagios_nna_source_group` for `flow_source`, an nmap scheduled scan for `nmap`, a Suricata signature ID for `suricata`. Required for those types and must be omitted for `system` checks, which have no target object (Network Analyzer reports `-1`). Network Analyzer does not validate this reference, so an ID that doesn't exist is accepted on write and simply yields a check that never produces a result - prefer interpolating another resource's `id` over hardcoding a number where one exists.
+- `object_id` (Number) The ID of the object this check evaluates: a `nagios_nna_source` or `nagios_nna_source_group` for `flow_source`, a `nagios_nna_nmap_scan` for `nmap`, a Suricata signature ID for `suricata`. Required for those types and must be omitted for `system` checks, which have no target object (Network Analyzer reports `-1`). Network Analyzer does not validate this reference, so an ID that doesn't exist is accepted on write and simply yields a check that never produces a result - prefer interpolating another resource's `id` over hardcoding a number where one exists.
 - `queries` (Attributes List) Traffic filter clauses narrowing what this check measures. Network Analyzer compiles these server-side into the `raw_query` filter expression below and never returns them, so - unlike every other attribute here - changes made outside Terraform to the underlying filter cannot be detected; `raw_query` is the observable result of what was last applied. (see [below for nested schema](#nestedatt--queries))
 - `warning_threshold` (String) The warning threshold, in Nagios range syntax (e.g. `1000`, `10:20`, `~:500`, `@10:20`). Omit the attribute entirely for no warning threshold - Network Analyzer stores an empty threshold as null and would report it back as unset, so an explicitly empty string is rejected here rather than causing a permanent diff.
 

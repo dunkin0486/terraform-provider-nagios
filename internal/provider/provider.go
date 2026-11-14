@@ -181,6 +181,7 @@ func (p *nagiosProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewCommandResource,
 		NewNNASourceResource,
 		NewNNANmapProfileResource,
+		NewNNANmapScanResource,
 		NewNNASourceGroupResource,
 		NewNNAUserResource,
 		NewNNACheckResource,
