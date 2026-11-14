@@ -121,7 +121,7 @@ resource "nagios_nna_check" "dmz_open_ports" {
 - `alert_snmp_receivers` (Set of Number) IDs of Network Analyzer SNMP trap receivers to notify.
 - `alert_users` (Set of Number) IDs of `nagios_nna_user` accounts to notify when this check changes state.
 - `check_frequency` (String) How often a `suricata` check runs: `5min`, `Hourly`, `Daily`, `Weekly`, `Monthly` or `Yearly`. Required for `suricata` checks and invalid for every other type.
-- `check_type` (String) The kind of check: `flow_source` (the default), `nmap`, `suricata` or `system`. Determines which `object_type` and `metric` values are valid - see the resource description.
+- `check_type` (String) The kind of check, fixed for the life of the check (changing it replaces the check): `flow_source` (the default), `nmap`, `suricata` or `system`. Determines which `object_type` and `metric` values are valid - see the resource description.
 - `critical_threshold` (String) The critical threshold, in Nagios range syntax. Same conventions as `warning_threshold`.
 - `enabled` (Boolean) Whether this check is actively evaluated. A newly created check always starts enabled, since Network Analyzer ignores this on create; set to false to have Terraform disable it immediately afterwards.
 - `lookback_period` (String) How far back a `suricata` check counts alerts: `1d`, `7d`, `30d`, `90d`, `180d` or `365d`. Required for `suricata` checks and invalid for every other type.

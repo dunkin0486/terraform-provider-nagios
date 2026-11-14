@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -136,11 +137,16 @@ func (r *nnaCheckResource) Schema(ctx context.Context, req resource.SchemaReques
 				Description: "The name of this check.",
 			},
 			"check_type": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(nnaCheckTypeFlowSource),
-				Description: "The kind of check: `flow_source` (the default), `nmap`, `suricata` or `system`. Determines which `object_type` and `metric` values are valid - see the resource description.",
-				Validators:  []validator.String{stringvalidator.OneOf(nnaCheckTypes...)},
+				Optional: true,
+				Computed: true,
+				Default:  stringdefault.StaticString(nnaCheckTypeFlowSource),
+				// Changing the type changes the shape of the whole check
+				// (target, metric set, payload), and object_id's
+				// UseStateForUnknown would otherwise carry the old type's id
+				// into a system check, which NNA reports back as -1.
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Description:   "The kind of check, fixed for the life of the check (changing it replaces the check): `flow_source` (the default), `nmap`, `suricata` or `system`. Determines which `object_type` and `metric` values are valid - see the resource description.",
+				Validators:    []validator.String{stringvalidator.OneOf(nnaCheckTypes...)},
 			},
 			"object_type": schema.StringAttribute{
 				Required:    true,

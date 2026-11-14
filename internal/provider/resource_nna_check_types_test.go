@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 // The nmap and suricata checks below reference an object_id (a scheduled
@@ -238,4 +239,41 @@ func TestAccNNACheckInvalidCombinations(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TestAccNNACheckChangeTypeReplaces guards switching an existing check's
+// check_type. object_id keeps its prior state value across an in-place
+// update (UseStateForUnknown), so an nmap -> system edit would plan the old
+// id while NNA reports -1, failing with "inconsistent result after apply".
+// check_type changes the shape of the whole check, so it forces replacement.
+func TestAccNNACheckChangeTypeReplaces(t *testing.T) {
+	name := "tf_" + acctest.RandString(10)
+	rName := "nagios_nna_check.check"
+	var firstID, secondID int64
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccNNAPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckNNACheckDestroy(t),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccNNACheckNmapConfig(name, "ports_open", "5", "10"),
+				Check:  testAccCaptureNNACheckID(rName, &firstID),
+			},
+			{
+				Config: testAccNNACheckSystemConfig(name, "cpu", "cpu_usage", "80", "90"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCaptureNNACheckID(rName, &secondID),
+					resource.TestCheckResourceAttr(rName, "check_type", "system"),
+					resource.TestCheckResourceAttr(rName, "object_id", "-1"),
+					func(*terraform.State) error {
+						if firstID == secondID {
+							return fmt.Errorf("check id %d was updated in place, want replacement", firstID)
+						}
+						return nil
+					},
+				),
+			},
+		},
+	})
 }
