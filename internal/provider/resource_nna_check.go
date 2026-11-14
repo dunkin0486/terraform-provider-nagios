@@ -157,7 +157,7 @@ func (r *nnaCheckResource) Schema(ctx context.Context, req resource.SchemaReques
 				Optional:      true,
 				Computed:      true,
 				PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
-				Description: "The ID of the object this check evaluates: a `nagios_nna_source` or `nagios_nna_source_group` for `flow_source`, an nmap scheduled scan for `nmap`, a Suricata signature ID for `suricata`. " +
+				Description: "The ID of the object this check evaluates: a `nagios_nna_source` or `nagios_nna_source_group` for `flow_source`, a `nagios_nna_nmap_scan` for `nmap`, a Suricata signature ID for `suricata`. " +
 					"Required for those types and must be omitted for `system` checks, which have no target object (Network Analyzer reports `-1`). " +
 					"Network Analyzer does not validate this reference, so an ID that doesn't exist is accepted on write and simply yields a check that never produces a result - prefer interpolating another resource's `id` over hardcoding a number where one exists.",
 			},

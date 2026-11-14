@@ -51,13 +51,19 @@ resource "nagios_nna_check" "ssh_scan_alerts" {
   check_frequency    = "Hourly"
 }
 
-# Alert when an nmap scheduled scan finds too many open ports. object_id is the
-# scan's ID inside Network Analyzer.
+resource "nagios_nna_nmap_scan" "dmz" {
+  name                = "dmz-nightly"
+  parameters          = "-sS -T4 -F -e eth0 10.20.0.0/24"
+  schedule_type       = "dailyAt"
+  schedule_parameters = { time = "02:00" }
+}
+
+# Alert when an nmap scheduled scan finds too many open ports.
 resource "nagios_nna_check" "dmz_open_ports" {
   name        = "dmz-open-ports"
   check_type  = "nmap"
   object_type = "scheduled_scan"
-  object_id   = 3
+  object_id   = nagios_nna_nmap_scan.dmz.id
   metric      = "ports_open"
 
   warning_threshold  = "20"
