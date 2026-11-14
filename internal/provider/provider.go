@@ -186,6 +186,7 @@ func (p *nagiosProvider) Resources(ctx context.Context) []func() resource.Resour
 		NewNNAUserResource,
 		NewNNACheckResource,
 		NewNNARoleResource,
+		NewNNASuricataRuleResource,
 		NewUserResource,
 	}
 }
