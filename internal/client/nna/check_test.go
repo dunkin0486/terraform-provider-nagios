@@ -581,3 +581,155 @@ func TestNewCheck_SendsAllFourStep3Arrays(t *testing.T) {
 		}
 	}
 }
+
+// newCheckRecorder serves a minimal create + read-back and records the POST
+// body, so payload-shape tests don't repeat the server boilerplate.
+func newCheckRecorder(t *testing.T, readBack string, got *map[string]any) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/checks":
+			*got = decodeWriteBody(t, r)
+			_, _ = w.Write([]byte(`{"message":"Check created successfully","check":{"id":9}}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/checks/9":
+			_, _ = w.Write([]byte(readBack))
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+}
+
+// TestNewCheck_SystemPutsMetricInStep1 pins the one check type whose wizard
+// payload is shaped differently: system checks carry metric under step1
+// (beside the association) rather than step2, and a payload with metric in
+// step2 fails with an unhandled 500 "Undefined array key \"metric\""
+// (confirmed live). System checks also have no target object, so the UI
+// sends the sentinel association id "-1".
+func TestNewCheck_SystemPutsMetricInStep1(t *testing.T) {
+	var got map[string]any
+	srv := newCheckRecorder(t, `{"id":9,"active":1,"check_type":"system","name":"s","object_type":"memory","object_id":-1,"metric":"swap_percent","warning":"80","critical":"90","raw_query":null,"alerting_associations":[]}`, &got)
+	defer srv.Close()
+
+	_, err := NewClient(srv.URL, "TOKEN").NewCheck(context.Background(), &Check{
+		Name: "s", CheckType: "system", ObjectType: "memory", ObjectID: -1,
+		Metric: "swap_percent", Warning: "80", Critical: "90",
+	})
+	if err != nil {
+		t.Fatalf("NewCheck: %v", err)
+	}
+
+	step1 := got["step1"].(map[string]any)
+	if step1["metric"] != "swap_percent" {
+		t.Errorf("step1.metric = %v, want swap_percent", step1["metric"])
+	}
+	if id := step1["association"].(map[string]any)["id"]; id != "-1" {
+		t.Errorf("step1.association.id = %v, want \"-1\"", id)
+	}
+	if _, present := got["step2"].(map[string]any)["metric"]; present {
+		t.Error("step2.metric must be absent for a system check")
+	}
+}
+
+// TestNewCheck_NonSystemKeepsMetricInStep2 guards the other direction: the
+// step1 placement is system-only, and must not leak into flow_source,
+// nmap or suricata payloads.
+func TestNewCheck_NonSystemKeepsMetricInStep2(t *testing.T) {
+	for _, ct := range []string{"flow_source", "nmap", "suricata"} {
+		t.Run(ct, func(t *testing.T) {
+			var got map[string]any
+			srv := newCheckRecorder(t, `{"id":9,"active":1,"check_type":"`+ct+`","name":"c","object_type":"x","object_id":1,"metric":"m","raw_query":null,"alerting_associations":[]}`, &got)
+			defer srv.Close()
+
+			_, err := NewClient(srv.URL, "TOKEN").NewCheck(context.Background(), &Check{
+				Name: "c", CheckType: ct, ObjectType: "x", ObjectID: 1, Metric: "m",
+				LookbackPeriod: "1d", CheckFrequency: "5min",
+			})
+			if err != nil {
+				t.Fatalf("NewCheck: %v", err)
+			}
+			if got["step2"].(map[string]any)["metric"] != "m" {
+				t.Errorf("step2.metric = %v, want m", got["step2"].(map[string]any)["metric"])
+			}
+			if _, present := got["step1"].(map[string]any)["metric"]; present {
+				t.Error("step1.metric must be absent")
+			}
+		})
+	}
+}
+
+// TestNewCheck_SuricataSendsLookbackAndFrequency pins the two suricata-only
+// step2 keys. Both are required server-side (omitting either is an
+// "Undefined array key" 500, confirmed live), and no other check type sends
+// them.
+func TestNewCheck_SuricataSendsLookbackAndFrequency(t *testing.T) {
+	var got map[string]any
+	srv := newCheckRecorder(t, `{"id":9,"active":1,"check_type":"suricata","name":"s","object_type":"signature_id","object_id":2100498,"metric":"alert_count","raw_query":"frequency=Hourly&lookback_period=7d","alerting_associations":[]}`, &got)
+	defer srv.Close()
+
+	_, err := NewClient(srv.URL, "TOKEN").NewCheck(context.Background(), &Check{
+		Name: "s", CheckType: "suricata", ObjectType: "signature_id", ObjectID: 2100498,
+		Metric: "alert_count", LookbackPeriod: "7d", CheckFrequency: "Hourly",
+	})
+	if err != nil {
+		t.Fatalf("NewCheck: %v", err)
+	}
+	step2 := got["step2"].(map[string]any)
+	if step2["lookback_period"] != "7d" || step2["check_frequency"] != "Hourly" {
+		t.Errorf("step2 = %v, want lookback_period=7d and check_frequency=Hourly", step2)
+	}
+}
+
+func TestNewCheck_NonSuricataOmitsLookbackAndFrequency(t *testing.T) {
+	var got map[string]any
+	srv := newCheckRecorder(t, `{"id":9,"active":1,"check_type":"nmap","name":"n","object_type":"scheduled_scan","object_id":1,"metric":"ports_open","raw_query":null,"alerting_associations":[]}`, &got)
+	defer srv.Close()
+
+	_, err := NewClient(srv.URL, "TOKEN").NewCheck(context.Background(), &Check{
+		Name: "n", CheckType: "nmap", ObjectType: "scheduled_scan", ObjectID: 1, Metric: "ports_open",
+	})
+	if err != nil {
+		t.Fatalf("NewCheck: %v", err)
+	}
+	step2 := got["step2"].(map[string]any)
+	for _, k := range []string{"lookback_period", "check_frequency"} {
+		if _, present := step2[k]; present {
+			t.Errorf("step2.%s must be absent for a non-suricata check", k)
+		}
+	}
+}
+
+// TestGetCheck_SuricataParsesLookbackAndFrequencyFromRawQuery: NNA never
+// returns these two as fields; it stores them as a query string in raw_query
+// (confirmed live) which is where its own UI reads them back from.
+func TestGetCheck_SuricataParsesLookbackAndFrequencyFromRawQuery(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":1,"active":1,"check_type":"suricata","name":"s","object_type":"signature_id","object_id":1,"metric":"alert_count","raw_query":"frequency=Hourly&lookback_period=7d","alerting_associations":[]}`))
+	}))
+	defer srv.Close()
+
+	got, err := NewClient(srv.URL, "TOKEN").GetCheck(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetCheck: %v", err)
+	}
+	if got.LookbackPeriod != "7d" || got.CheckFrequency != "Hourly" {
+		t.Errorf("LookbackPeriod/CheckFrequency = %q/%q, want 7d/Hourly", got.LookbackPeriod, got.CheckFrequency)
+	}
+}
+
+// TestGetCheck_NonSuricataRawQueryIsNotParsed: a flow_source raw_query is a
+// pcap-style filter ("src port 443"), not a query string, and must not be
+// mined for the suricata fields.
+func TestGetCheck_NonSuricataRawQueryIsNotParsed(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"id":1,"active":1,"check_type":"flow_source","name":"c","object_type":"source","object_id":1,"metric":"bytes","raw_query":"src port 443","alerting_associations":[]}`))
+	}))
+	defer srv.Close()
+
+	got, err := NewClient(srv.URL, "TOKEN").GetCheck(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("GetCheck: %v", err)
+	}
+	if got.LookbackPeriod != "" || got.CheckFrequency != "" {
+		t.Errorf("LookbackPeriod/CheckFrequency = %q/%q, want both empty", got.LookbackPeriod, got.CheckFrequency)
+	}
+}

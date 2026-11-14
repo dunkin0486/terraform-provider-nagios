@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -29,8 +30,8 @@ type Check struct {
 	// {"message":"Check type [ x ] not supported"}, unlike every other bad
 	// input here, which either 500s or is silently accepted. Confirmed
 	// live. Each check type addresses a different kind of target via
-	// ObjectType/ObjectID and permits a different Metric set; only
-	// "flow_source" is currently supported by this provider.
+	// ObjectType/ObjectID and permits a different Metric set:
+	// "flow_source", "nmap", "suricata" and "system" are all supported.
 	CheckType string `json:"check_type"`
 	// ObjectType and ObjectID form a polymorphic reference to the thing
 	// being checked, rather than a single typed foreign key - for
@@ -90,6 +91,16 @@ type Check struct {
 	LastRun    string `json:"last_run"`
 	LastCode   *int64 `json:"last_code"`
 	LastStdout string `json:"last_stdout"`
+
+	// LookbackPeriod and CheckFrequency exist on suricata checks only. NNA
+	// requires both on write (omitting either is an "Undefined array key"
+	// 500, confirmed live) but never returns them as fields: it folds them
+	// into RawQuery as a query string, e.g.
+	// "frequency=Hourly&lookback_period=7d", which is where NNA's own UI
+	// reads them back from. UnmarshalJSON unpacks that so callers see them
+	// as ordinary fields; empty for every other check type.
+	LookbackPeriod string `json:"-"`
+	CheckFrequency string `json:"-"`
 
 	// Queries is write-only: NNA accepts it under step2 and compiles it
 	// into RawQuery, but never returns it under any field name (confirmed
@@ -159,6 +170,15 @@ func (c *Check) UnmarshalJSON(data []byte) error {
 	}
 	*c = Check(raw.checkAlias)
 
+	if c.CheckType == CheckTypeSuricata {
+		// A malformed raw_query leaves both fields empty rather than
+		// failing the whole decode: the check itself is still readable.
+		if q, err := url.ParseQuery(c.RawQuery); err == nil {
+			c.LookbackPeriod = q.Get("lookback_period")
+			c.CheckFrequency = q.Get("frequency")
+		}
+	}
+
 	for _, a := range raw.AlertingAssociations {
 		switch a.AssociationType {
 		case assocTypeUser:
@@ -204,6 +224,9 @@ type checkWritePayload struct {
 type checkStep1 struct {
 	Name        string           `json:"name"`
 	Association checkAssociation `json:"association"`
+	// Metric lives here, not in step2, for system checks only - see
+	// writePayloadFor.
+	Metric string `json:"metric,omitempty"`
 }
 
 // checkAssociation carries the target reference. id is sent as a string
@@ -215,10 +238,13 @@ type checkAssociation struct {
 }
 
 type checkStep2 struct {
-	Metric            string       `json:"metric"`
+	Metric            string       `json:"metric,omitempty"`
 	WarningThreshold  string       `json:"warning_threshold"`
 	CriticalThreshold string       `json:"critical_threshold"`
 	Queries           []CheckQuery `json:"queries"`
+	// Suricata-only; omitted for every other check type.
+	LookbackPeriod string `json:"lookback_period,omitempty"`
+	CheckFrequency string `json:"check_frequency,omitempty"`
 }
 
 type checkStep3 struct {
@@ -238,7 +264,33 @@ func orEmpty[T any](s []T) []T {
 	return s
 }
 
+// The check types NNA's /api/v1/checks endpoint serves.
+const (
+	CheckTypeFlowSource = "flow_source"
+	CheckTypeNmap       = "nmap"
+	CheckTypeSuricata   = "suricata"
+	CheckTypeSystem     = "system"
+)
+
+// writePayloadFor builds the wizard body. flow_source, nmap and suricata
+// share one shape; system differs in that its metric travels in step1 rather
+// than step2 - sending it in step2 is an unhandled "Undefined array key
+// \"metric\"" 500 (confirmed live). The caller supplies ObjectID -1 for
+// system checks, matching the association id NNA's own UI sends, since they
+// have no target object.
 func writePayloadFor(c *Check) *checkWritePayload {
+	p := buildWritePayload(c)
+	if c.CheckType == CheckTypeSystem {
+		p.Step1.Metric, p.Step2.Metric = p.Step2.Metric, ""
+	}
+	if c.CheckType == CheckTypeSuricata {
+		p.Step2.LookbackPeriod = c.LookbackPeriod
+		p.Step2.CheckFrequency = c.CheckFrequency
+	}
+	return p
+}
+
+func buildWritePayload(c *Check) *checkWritePayload {
 	return &checkWritePayload{
 		CheckType: c.CheckType,
 		Step1: checkStep1{

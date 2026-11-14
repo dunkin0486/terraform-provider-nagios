@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -15,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -22,9 +25,10 @@ import (
 )
 
 var (
-	_ resource.Resource                = &nnaCheckResource{}
-	_ resource.ResourceWithConfigure   = &nnaCheckResource{}
-	_ resource.ResourceWithImportState = &nnaCheckResource{}
+	_ resource.Resource                   = &nnaCheckResource{}
+	_ resource.ResourceWithConfigure      = &nnaCheckResource{}
+	_ resource.ResourceWithImportState    = &nnaCheckResource{}
+	_ resource.ResourceWithValidateConfig = &nnaCheckResource{}
 )
 
 // thresholdPattern accepts Nagios range syntax: an optional "@" (invert
@@ -81,6 +85,9 @@ type nnaCheckModel struct {
 	Enabled    types.Bool   `tfsdk:"enabled"`
 	Queries    types.List   `tfsdk:"queries"`
 
+	LookbackPeriod types.String `tfsdk:"lookback_period"`
+	CheckFrequency types.String `tfsdk:"check_frequency"`
+
 	AlertUsers         types.Set `tfsdk:"alert_users"`
 	AlertNagiosServers types.Set `tfsdk:"alert_nagios_servers"`
 	AlertSNMPReceivers types.Set `tfsdk:"alert_snmp_receivers"`
@@ -108,7 +115,17 @@ func (r *nnaCheckResource) Metadata(ctx context.Context, req resource.MetadataRe
 func (r *nnaCheckResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Description: "Manages a Nagios Network Analyzer alert check - a warning/critical threshold evaluated against a metric on a flow source or source group. This is Network Analyzer's closest analog to a Nagios XI service check.\n\n" +
-			"Only Network Analyzer's `flow_source` check type is currently supported. Network Analyzer also has `nmap`, `suricata` and `system` checks, each targeting a different kind of object with its own metric set; those are tracked in issue #225 and are not manageable through this resource yet.",
+			"Network Analyzer serves four check types behind one endpoint, selected by `check_type`, each targeting a different kind of object with its own metric set:\n\n" +
+			"| `check_type` | `object_type` | `metric` |\n|---|---|---|\n" +
+			"| `flow_source` (default) | `source`, `sourcegroup` | `bytes`, `flows`, `packets`, `pps`, `bps`, `bpp`, `abnormal_behavior` |\n" +
+			"| `nmap` | `scheduled_scan` | `ports_open`, `ports_closed` |\n" +
+			"| `suricata` | `signature_id` | `alert_count` |\n" +
+			"| `system` | `cpu` | `cpu_usage` |\n" +
+			"| `system` | `memory` | `used_percent`, `swap_percent` |\n" +
+			"| `system` | `drive` | `percent`, `available` |\n" +
+			"| `system` | `workers` | `online` |\n\n" +
+			"Network Analyzer accepts any combination of these without complaint, so this resource rejects mismatched pairings at plan time. " +
+			"`suricata` checks additionally require `lookback_period` and `check_frequency`; `system` checks have no target object, so `object_id` must be omitted for them.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.Int64Attribute{
 				Computed:      true,
@@ -120,28 +137,34 @@ func (r *nnaCheckResource) Schema(ctx context.Context, req resource.SchemaReques
 				Description: "The name of this check.",
 			},
 			"check_type": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Default:     stringdefault.StaticString(nnaCheckTypeFlowSource),
-				Description: "The kind of object this check evaluates. Only `flow_source` is supported by this provider today, so this attribute rarely needs setting.",
-				Validators:  []validator.String{stringvalidator.OneOf(nnaCheckTypeFlowSource)},
+				Optional: true,
+				Computed: true,
+				Default:  stringdefault.StaticString(nnaCheckTypeFlowSource),
+				// Changing the type changes the shape of the whole check
+				// (target, metric set, payload), and object_id's
+				// UseStateForUnknown would otherwise carry the old type's id
+				// into a system check, which NNA reports back as -1.
+				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				Description:   "The kind of check, fixed for the life of the check (changing it replaces the check): `flow_source` (the default), `nmap`, `suricata` or `system`. Determines which `object_type` and `metric` values are valid - see the resource description.",
+				Validators:    []validator.String{stringvalidator.OneOf(nnaCheckTypes...)},
 			},
 			"object_type": schema.StringAttribute{
 				Required:    true,
-				Description: "What `object_id` refers to: `source` for a single flow source, or `sourcegroup` for a source group.",
-				Validators:  []validator.String{stringvalidator.OneOf("source", "sourcegroup")},
+				Description: "What the check targets. For `flow_source`: `source` for a single flow source or `sourcegroup` for a source group. For `nmap`: `scheduled_scan`. For `suricata`: `signature_id`. For `system`: `cpu`, `memory`, `drive` or `workers`.",
+				Validators:  []validator.String{stringvalidator.OneOf(nnaObjectTypes...)},
 			},
 			"object_id": schema.Int64Attribute{
-				Required: true,
-				Description: "The ID of the `nagios_nna_source` or `nagios_nna_source_group` this check evaluates. " +
-					"Network Analyzer does not validate this reference, so an ID that doesn't exist is accepted on write and simply yields a check that never produces a result - prefer interpolating another resource's `id` over hardcoding a number.",
+				Optional:      true,
+				Computed:      true,
+				PlanModifiers: []planmodifier.Int64{int64planmodifier.UseStateForUnknown()},
+				Description: "The ID of the object this check evaluates: a `nagios_nna_source` or `nagios_nna_source_group` for `flow_source`, an nmap scheduled scan for `nmap`, a Suricata signature ID for `suricata`. " +
+					"Required for those types and must be omitted for `system` checks, which have no target object (Network Analyzer reports `-1`). " +
+					"Network Analyzer does not validate this reference, so an ID that doesn't exist is accepted on write and simply yields a check that never produces a result - prefer interpolating another resource's `id` over hardcoding a number where one exists.",
 			},
 			"metric": schema.StringAttribute{
 				Required:    true,
-				Description: "The flow metric to evaluate the thresholds against. One of `bytes`, `flows`, `packets`, `pps`, `bps`, `bpp`, or `abnormal_behavior`. Thresholds are ignored for `abnormal_behavior`.",
-				Validators: []validator.String{
-					stringvalidator.OneOf("bytes", "flows", "packets", "pps", "bps", "bpp", "abnormal_behavior"),
-				},
+				Description: "The metric to evaluate the thresholds against; the valid values depend on `check_type` (and, for `system`, `object_type`) - see the resource description. Thresholds are ignored for the `abnormal_behavior` metric.",
+				Validators:  []validator.String{stringvalidator.OneOf(nnaMetrics...)},
 			},
 			"warning_threshold": schema.StringAttribute{
 				Optional: true,
@@ -182,9 +205,19 @@ func (r *nnaCheckResource) Schema(ctx context.Context, req resource.SchemaReques
 					},
 				},
 			},
+			"lookback_period": schema.StringAttribute{
+				Optional:    true,
+				Description: "How far back a `suricata` check counts alerts: `1d`, `7d`, `30d`, `90d`, `180d` or `365d`. Required for `suricata` checks and invalid for every other type.",
+				Validators:  []validator.String{stringvalidator.OneOf("1d", "7d", "30d", "90d", "180d", "365d")},
+			},
+			"check_frequency": schema.StringAttribute{
+				Optional:    true,
+				Description: "How often a `suricata` check runs: `5min`, `Hourly`, `Daily`, `Weekly`, `Monthly` or `Yearly`. Required for `suricata` checks and invalid for every other type.",
+				Validators:  []validator.String{stringvalidator.OneOf("5min", "Hourly", "Daily", "Weekly", "Monthly", "Yearly")},
+			},
 			"raw_query": schema.StringAttribute{
 				Computed:    true,
-				Description: "The traffic filter expression Network Analyzer compiled from `queries` (e.g. `src port 443`). Read-only.",
+				Description: "The filter expression Network Analyzer stored for this check: for `flow_source` checks, the traffic filter compiled from `queries` (e.g. `src port 443`); for `suricata` checks, the encoded `lookback_period`/`check_frequency` (e.g. `frequency=Hourly&lookback_period=7d`). Read-only.",
 			},
 			"enabled": schema.BoolAttribute{
 				Optional:    true,
@@ -232,9 +265,150 @@ func (r *nnaCheckResource) Schema(ctx context.Context, req resource.SchemaReques
 	}
 }
 
-// nnaCheckTypeFlowSource is the only check type this resource supports; see
-// the schema description for the other three Network Analyzer offers.
-const nnaCheckTypeFlowSource = "flow_source"
+// nnaCheckTypeFlowSource is check_type's default - the original, and still
+// most common, check type.
+const nnaCheckTypeFlowSource = nna.CheckTypeFlowSource
+
+var (
+	nnaCheckTypes = []string{nna.CheckTypeFlowSource, nna.CheckTypeNmap, nna.CheckTypeSuricata, nna.CheckTypeSystem}
+
+	// nnaObjectTypesByCheckType and nnaSystemMetricsByObjectType are the
+	// pairings Network Analyzer's own UI offers. NNA validates none of them
+	// server-side; this table is the only thing keeping a config from
+	// describing a check no collector will evaluate.
+	nnaObjectTypesByCheckType = map[string][]string{
+		nna.CheckTypeFlowSource: {"source", "sourcegroup"},
+		nna.CheckTypeNmap:       {"scheduled_scan"},
+		nna.CheckTypeSuricata:   {"signature_id"},
+		nna.CheckTypeSystem:     {"cpu", "memory", "drive", "workers"},
+	}
+	nnaMetricsByCheckType = map[string][]string{
+		nna.CheckTypeFlowSource: {"bytes", "flows", "packets", "pps", "bps", "bpp", "abnormal_behavior"},
+		nna.CheckTypeNmap:       {"ports_open", "ports_closed"},
+		nna.CheckTypeSuricata:   {"alert_count"},
+	}
+	nnaSystemMetricsByObjectType = map[string][]string{
+		"cpu":     {"cpu_usage"},
+		"memory":  {"used_percent", "swap_percent"},
+		"drive":   {"percent", "available"},
+		"workers": {"online"},
+	}
+
+	// Flat unions, used only for the per-attribute OneOf validators so a
+	// typo fails with a value list; the pairing is enforced by
+	// validateNNACheckCombination.
+	nnaObjectTypes = flattenUnique(nnaObjectTypesByCheckType, nnaCheckTypes)
+	nnaMetrics     = append(flattenUnique(nnaMetricsByCheckType, nnaCheckTypes), flattenUnique(nnaSystemMetricsByObjectType, nnaObjectTypesByCheckType[nna.CheckTypeSystem])...)
+)
+
+func flattenUnique(m map[string][]string, order []string) []string {
+	var out []string
+	for _, k := range order {
+		out = append(out, m[k]...)
+	}
+	return out
+}
+
+func nnaCheckTypeHasFrequency(checkType string) bool {
+	return checkType == nna.CheckTypeSuricata
+}
+
+// validateNNACheckCombination reports, as human-readable messages, whether
+// objectType and metric are valid for checkType. An empty string means that
+// attribute is fine.
+func validateNNACheckCombination(checkType, objectType, metric string) (objectTypeErr, metricErr string) {
+	if !slices.Contains(nnaObjectTypesByCheckType[checkType], objectType) {
+		objectTypeErr = fmt.Sprintf("object_type %q is not valid for check_type %q; expected one of: %s.",
+			objectType, checkType, strings.Join(nnaObjectTypesByCheckType[checkType], ", "))
+		return objectTypeErr, ""
+	}
+	if checkType == nna.CheckTypeSystem {
+		if !slices.Contains(nnaSystemMetricsByObjectType[objectType], metric) {
+			metricErr = fmt.Sprintf("metric %q is not valid for object_type %q; expected one of: %s.",
+				metric, objectType, strings.Join(nnaSystemMetricsByObjectType[objectType], ", "))
+		}
+		return "", metricErr
+	}
+	if !slices.Contains(nnaMetricsByCheckType[checkType], metric) {
+		metricErr = fmt.Sprintf("metric %q is not valid for check_type %q; expected one of: %s.",
+			metric, checkType, strings.Join(nnaMetricsByCheckType[checkType], ", "))
+	}
+	return "", metricErr
+}
+
+// ValidateConfig enforces what the per-attribute validators can't: the
+// cross-attribute rules between check_type, object_type, metric, object_id,
+// queries and the suricata-only fields. Anything still unknown at validate
+// time (e.g. interpolated from another resource) is skipped rather than
+// guessed at.
+func (r *nnaCheckResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var cfg nnaCheckModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &cfg)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// check_type defaults to flow_source, but a default isn't applied to
+	// config, so a null here means "flow_source".
+	if cfg.CheckType.IsUnknown() {
+		return
+	}
+	checkType := nnaCheckTypeFlowSource
+	if !cfg.CheckType.IsNull() {
+		checkType = cfg.CheckType.ValueString()
+	}
+	if !slices.Contains(nnaCheckTypes, checkType) {
+		return // the check_type OneOf validator reports this
+	}
+
+	if !cfg.ObjectType.IsUnknown() && !cfg.ObjectType.IsNull() &&
+		!cfg.Metric.IsUnknown() && !cfg.Metric.IsNull() &&
+		slices.Contains(nnaObjectTypes, cfg.ObjectType.ValueString()) && slices.Contains(nnaMetrics, cfg.Metric.ValueString()) {
+		objectErr, metricErr := validateNNACheckCombination(checkType, cfg.ObjectType.ValueString(), cfg.Metric.ValueString())
+		if objectErr != "" {
+			resp.Diagnostics.AddAttributeError(path.Root("object_type"), "Invalid object_type for check_type", objectErr)
+		}
+		if metricErr != "" {
+			resp.Diagnostics.AddAttributeError(path.Root("metric"), "Invalid metric for check", metricErr)
+		}
+	}
+
+	if !cfg.ObjectID.IsUnknown() {
+		switch {
+		case checkType == nna.CheckTypeSystem && !cfg.ObjectID.IsNull():
+			resp.Diagnostics.AddAttributeError(path.Root("object_id"), "object_id not allowed for system checks",
+				"system checks have no target object, so object_id must not be set for check_type \"system\".")
+		case checkType != nna.CheckTypeSystem && cfg.ObjectID.IsNull():
+			resp.Diagnostics.AddAttributeError(path.Root("object_id"), "Missing object_id",
+				fmt.Sprintf("object_id is required for check_type %q.", checkType))
+		}
+	}
+
+	for _, f := range []struct {
+		name string
+		val  types.String
+	}{
+		{"lookback_period", cfg.LookbackPeriod},
+		{"check_frequency", cfg.CheckFrequency},
+	} {
+		if f.val.IsUnknown() {
+			continue
+		}
+		switch {
+		case nnaCheckTypeHasFrequency(checkType) && f.val.IsNull():
+			resp.Diagnostics.AddAttributeError(path.Root(f.name), "Missing "+f.name,
+				fmt.Sprintf("%s is required for check_type \"suricata\".", f.name))
+		case !nnaCheckTypeHasFrequency(checkType) && !f.val.IsNull():
+			resp.Diagnostics.AddAttributeError(path.Root(f.name), f.name+" not allowed for this check_type",
+				fmt.Sprintf("lookback_period and check_frequency are only valid for check_type \"suricata\", not %q.", checkType))
+		}
+	}
+
+	if checkType != nnaCheckTypeFlowSource && !cfg.Queries.IsNull() && !cfg.Queries.IsUnknown() {
+		resp.Diagnostics.AddAttributeError(path.Root("queries"), "queries not allowed for this check_type",
+			fmt.Sprintf("queries are only valid for check_type %q, not %q.", nnaCheckTypeFlowSource, checkType))
+	}
+}
 
 func (r *nnaCheckResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
@@ -375,14 +549,6 @@ func (r *nnaCheckResource) ImportState(ctx context.Context, req resource.ImportS
 		return
 	}
 
-	// Verify the target really is a flow_source check before adopting it.
-	// /api/v1/checks serves all four check types behind one id space, and
-	// check_type is writable, so importing an nmap/suricata/system check
-	// would otherwise succeed, let Read write its real type into state, and
-	// then - since configuration can only legally say "flow_source" - the
-	// next apply's full-replace PUT would silently rewrite that check as a
-	// different type, discarding its original target and metric. Failing
-	// here turns a destructive surprise into an actionable error.
 	existing, err := r.client.GetCheck(ctx, id)
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading NNA check for import", err.Error())
@@ -392,13 +558,15 @@ func (r *nnaCheckResource) ImportState(ctx context.Context, req resource.ImportS
 		resp.Diagnostics.AddError("NNA check not found", fmt.Sprintf("No Network Analyzer check exists with id %d.", id))
 		return
 	}
-	if existing.CheckType != nnaCheckTypeFlowSource {
+	// check_type is writable and the next apply's full-replace PUT would
+	// send whatever type is in state, so a type this resource can't model
+	// would be silently rewritten. All four types NNA currently serves are
+	// supported; this only trips if NNA adds a fifth.
+	if !slices.Contains(nnaCheckTypes, existing.CheckType) {
 		resp.Diagnostics.AddError(
 			"Unsupported NNA check type",
-			fmt.Sprintf(
-				"Check %d has check_type %q, but this resource only supports %q. Importing it would let the next apply rewrite it as a %[4]q check and discard its current configuration. Support for the other check types is tracked in issue #225.",
-				id, existing.CheckType, nnaCheckTypeFlowSource, nnaCheckTypeFlowSource,
-			),
+			fmt.Sprintf("Check %d has check_type %q, but this resource only supports %s. Importing it would let the next apply rewrite it and discard its current configuration.",
+				id, existing.CheckType, strings.Join(nnaCheckTypes, ", ")),
 		)
 		return
 	}
@@ -412,7 +580,9 @@ func (r *nnaCheckResource) ImportState(ctx context.Context, req resource.ImportS
 	// since Terraform has nothing in state to compare against. Warn here,
 	// at the one point where both "a real filter exists" (existing.RawQuery)
 	// and "the config doesn't account for it" are knowable at once.
-	if existing.RawQuery != "" {
+	// Only flow_source: for suricata, raw_query holds lookback_period and
+	// check_frequency, which Read does populate.
+	if existing.CheckType == nnaCheckTypeFlowSource && existing.RawQuery != "" {
 		resp.Diagnostics.AddWarning(
 			"Imported NNA check has an unrepresentable traffic filter",
 			fmt.Sprintf(
@@ -469,6 +639,14 @@ func nnaCheckFromModel(ctx context.Context, m *nnaCheckModel) (*nna.Check, diag.
 		Metric:     m.Metric.ValueString(),
 		Warning:    m.Warning.ValueString(),
 		Critical:   m.Critical.ValueString(),
+
+		LookbackPeriod: m.LookbackPeriod.ValueString(),
+		CheckFrequency: m.CheckFrequency.ValueString(),
+	}
+	if chk.CheckType == nna.CheckTypeSystem {
+		// object_id is unset in config for system checks; -1 is the
+		// sentinel association id NNA's own UI sends for them.
+		chk.ObjectID = -1
 	}
 
 	if !m.Queries.IsNull() && !m.Queries.IsUnknown() {
@@ -529,6 +707,8 @@ func modelFromNNACheck(ctx context.Context, m *nnaCheckModel, c *nna.Check) diag
 	m.Warning = stringOrNull(c.Warning)
 	m.Critical = stringOrNull(c.Critical)
 	m.RawQuery = types.StringValue(c.RawQuery)
+	m.LookbackPeriod = stringOrNull(c.LookbackPeriod)
+	m.CheckFrequency = stringOrNull(c.CheckFrequency)
 	m.Enabled = types.BoolValue(c.Active != 0)
 
 	m.LastValue = types.StringValue(c.LastVal)
