@@ -2,7 +2,7 @@
 Description=Wire the build-time Suricata install into NNA (permissions, config row, ruleset seed)
 # fullinstall creates the nna user/nnacmd group and the NNA database this
 # depends on.
-After=nna-install.service
+After=nna-install.service mysqld.service
 Requires=nna-install.service
 ConditionPathExists=!/var/lib/nagiosna/.suricata-configured
 

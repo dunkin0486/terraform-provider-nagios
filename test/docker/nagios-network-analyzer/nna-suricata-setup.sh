@@ -52,4 +52,8 @@ cd "$NNA_ROOT"
 export HOME=/tmp XDG_CONFIG_HOME=/tmp/.config XDG_CACHE_HOME=/tmp/.cache XDG_DATA_HOME=/tmp/.local
 run_artisan() { runuser -u apache -- php artisan "$@"; }
 run_artisan db:seed --class='Database\Seeders\SuricataRulesetSeeder' --force
-run_artisan tinker --execute='$c = App\Models\SuricataConfig::firstOrCreate([]); $c->evelog_name = $c->evelog_name ?: "eve.json"; $c->rulesets_seeded = 1; $c->save();'
+# tinker can exit 0 even when the PHP it runs throws, so confirm the write
+# landed by checking for an explicit marker rather than trusting the exit code.
+out=$(run_artisan tinker --execute='$c = App\Models\SuricataConfig::firstOrCreate([]); $c->evelog_name = $c->evelog_name ?: "eve.json"; $c->rulesets_seeded = 1; $c->save(); echo "SURICATA_CONFIG_OK";' )
+echo "$out"
+grep -q SURICATA_CONFIG_OK <<<"$out"
